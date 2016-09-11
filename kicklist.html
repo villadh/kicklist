@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<!--
+Copyright (c) 2016 Twitter Inc.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html>
+<head>
+  <meta charset=utf-8 />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kick17 Marathon Checklist</title>
+
+  <!-- Material Design Theming -->
+  <link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <script defer src="https://code.getmdl.io/1.1.3/material.min.js"></script>
+ <!-- 
+  <link rel="stylesheet" href="main.css">
+-->
+
+  <!-- Firebase -->
+  
+<script src="https://www.gstatic.com/firebasejs/3.3.0/firebase.js"></script>
+<script>
+  // Initialize Firebase
+  var config = {
+    apiKey: "AIzaSyCkC6Wclc26m2OJtD3QfkRNuQ5TQ0QRgUk",
+    authDomain: "kick17-checklist.firebaseapp.com",
+    databaseURL: "https://kick17-checklist.firebaseio.com",
+    storageBucket: "",
+  };
+  firebase.initializeApp(config);
+   // Get a reference to the database service
+  var database = firebase.database();
+</script>
+
+  <script type="text/javascript">
+	// map variables
+	var cardMap = []
+		, SETMAX = 40
+		, NOP = 0
+		, ADD = 1
+		, DEL = 2
+		;
+	// user variables
+	var uid
+		, returningVisitor = false
+	;
+
+	// database variables
+	var setRef = firebase.database().ref('/Sets').orderByKey()
+		, cardRef = firebase.database().ref('cards').orderByChild('Set')
+		, userRef
+		;
+
+	// card variables
+	var sets
+		, uCards
+		;
+    /**
+     * Function called when clicking the Login/Logout button.
+     */
+    // [START buttoncallback]
+    function toggleSignIn() {
+      if (!firebase.auth().currentUser) {
+        // [START createprovider]
+        var provider = new firebase.auth.TwitterAuthProvider();
+        // [END createprovider]
+        // [START signin]
+        firebase.auth().signInWithRedirect(provider);
+        // [END signin]
+      } else {
+        // [START signout]
+        firebase.auth().signOut();
+        // [END signout]
+      }
+      // [START_EXCLUDE]
+      document.getElementById('twitter-sign-in').disabled = true;
+      // [END_EXCLUDE]
+    }
+    // [END buttoncallback]
+    /**
+     * initApp handles setting up UI event listeners and registering Firebase auth listeners:
+     *  - firebase.auth().onAuthStateChanged: This listener is called when the user is signed in or
+     *    out, and that is where we update the UI.
+     *  - firebase.auth().getRedirectResult(): This promise completes when the user gets back from
+     *    the auth redirect flow. It is where you can get the OAuth token and secret from the IDP.
+     */
+    function initApp() {
+      // Result from Redirect auth flow.
+      // [START getidptoken]
+      firebase.auth().getRedirectResult().then(function(result) {
+        // The signed-in user info.
+        var user = result.user;
+      }).catch(function(error) {
+        // Handle Errors here.
+        var errorCode = error.code;
+        var errorMessage = error.message;
+        // The email of the user's account used.
+        var email = error.email;
+        // The firebase.auth.AuthCredential type that was used.
+        var credential = error.credential;
+        // [START_EXCLUDE]
+        if (errorCode === 'auth/account-exists-with-different-credential') {
+          alert('You have already signed up with a different auth provider for that email.');
+          // If you are using multiple auth providers on your app you should handle linking
+          // the user's accounts here.
+        } else {
+          console.error(error);
+        }
+        // [END_EXCLUDE]
+      });
+      // [END getidptoken]
+      // Listening for auth state changes.
+      // [START authstatelistener]
+      firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+          // User is signed in.
+          var displayName = user.displayName;
+          var email = user.email;
+          var emailVerified = user.emailVerified;
+          var photoURL = user.photoURL;
+          var isAnonymous = user.isAnonymous;
+		  var providerData = user.providerData;
+		  // set user identity
+          uid = user.uid;
+		  userRef = firebase.database().ref('/users/' + uid +'/cards').orderByChild('Set');
+
+		  var kickfanname = '';
+		  var newImg = document.createElement('img');
+		  newImg.src = photoURL;
+		  newImg.style.float = "right";
+		  document.getElementById('account-details').innerHTML = '';
+  		  document.getElementById('sign-in-hint').innerHTML = '';
+		  document.getElementById('sign-in-hint').appendChild(newImg);
+
+		  //document.getElementById('sign-in-status').style.display = 'none';
+		  document.getElementById('sign-in-banner').textContent = 'Welcome '+ displayName;
+		  document.getElementById('twitter-sign-in').style.float = 'right';
+          document.getElementById('twitter-sign-in').textContent = 'Sign out';
+		  
+		  // show action buttons
+		  document.getElementById('profile-button').style.visibility = 'visible';
+		  document.getElementById('profile-button').style.float = 'right';
+
+		  document.getElementById('save-button').style.visibility = 'visible';		  
+		  // show checklist mainboard
+		  document.getElementById('mainboard-checklist').style.visibility = 'visible';
+/*
+			if(email){
+				document.getElementById('e-mail').textContent = email;
+			} else {
+				document.getElementById('e-mail').textContent = 'E-mail has not been provided';
+				// TODO : add option to set kick name
+				//user.updateEmail("user@example.com").then(function() {
+					// Update successful.
+				//}, function(error) {
+					// An error happened.
+				//});
+			}
+			if(kickfanname){
+				document.getElementById('kick-fan-name').textContent = kickfanname;
+			} else {
+				document.getElementById('kick-fan-name').textContent = 'Kick fan name has not been provided';
+				// TODO : add option to set kick name
+			}
+*/
+			// determine if user is a returning visitor or new
+			userRef.once('value').then(function(userSnapshot){
+				returningVisitor = userSnapshot.exists();
+				if(returningVisitor){	// show user their cards
+	// TODO: filter by user preferences
+					renderCards(userSnapshot);
+					console.log("welcome back!");
+				} else {	// show all marathon cards in database
+					console.log("Hello new visitor!");
+					cardRef.once('value').then(renderCards);
+				}
+			});
+	
+			//document.getElementById('mainboard-checklist').style.visibility = 'visible';
+// TODO: save changes
+// TODO: save preferences
+		  } else {
+          // User is signed out.
+          // [START_EXCLUDE]
+		  document.getElementById('sign-in-banner').textContent = 'Sign In to Get Started';
+          //document.getElementById('sign-in-status').textContent = 'Signed out';
+		  document.getElementById('sign-in-hint').textContent = 'Sign in with your Twitter account below.';
+          document.getElementById('twitter-sign-in').textContent = 'Sign in with Twitter';
+		  document.getElementById('twitter-sign-in').style.float = 'none';		  
+		  document.getElementById('profile-button').style.visibility = 'hidden';
+
+          document.getElementById('account-details').textContent = 'null';
+          document.getElementById('e-mail').textContent = 'null';
+          document.getElementById('kick-fan-name').textContent = 'null';
+		  
+		  document.getElementById('save-button').style.visibility = 'hidden';
+		  document.getElementById('mainboard-checklist').innerHTML = '';
+// TODO : clear checklist area
+          // [END_EXCLUDE]
+        }
+        // [START_EXCLUDE]
+        document.getElementById('twitter-sign-in').disabled = false;
+        // [END_EXCLUDE]
+      });
+      // [END authstatelistener]
+      document.getElementById('twitter-sign-in').addEventListener('click', toggleSignIn, false);
+    }
+
+	function setOwnership(){
+		// TODO: use promise
+		userRef.equalTo('GOT').once('value', function(userCardsSnapshot){
+			if(userCardsSnapshot.exists()){
+				console.log("setOwnership: walking user tree");
+				userCardsSnapshot.forEach(function(userCardChildSnapshot){
+					var userCards = document.getElementsByName(userCardChildSnapshot.key);
+					userCards[0].checked = true;
+					userCards[0].value = userCardChildSnapshot.val();
+				});
+			}
+			else
+				console.log("setOwnership: did not find user tree");
+		});
+	}
+
+	function showSets(){
+		console.log("showSets: list marathon sets");
+// TODO: filter on user preferences
+		setRef.once('value').then(renderSetNames);
+	}
+
+	function renderCards(cardsetSnapshot){
+		console.log('renderCards: displaying checklist');
+		var  row = 0
+			, col = 0
+			, setArea = document.getElementById('mainboard-checklist')
+		;
+
+		setArea.innerHTML = '';
+		
+		uCards = cardsetSnapshot;
+		uCards.forEach(function(cardChildSnapshot){
+			var checkArea = document.createElement('input')
+				, cardArea = document.createElement('p')
+				, cardsetArea = document.getElementById(cardChildSnapshot.val().Set)
+				;
+
+			checkArea.type = "checkbox";
+			checkArea.name = cardChildSnapshot.key;
+			checkArea.style.float = "left";
+			checkArea.setAttribute('row', row);
+			checkArea.setAttribute('col', col++);
+			cardArea.innerHTML += cardChildSnapshot.val().Player;
+			// check for card variant parallel
+			if(cardChildSnapshot.child('Variant').exists())
+				cardArea.innerHTML += " " + cardChildSnapshot.val().Variant;
+			// set input tag value 
+			checkArea.value = cardChildSnapshot.child('status').val()
+			// check for ownsership
+			if(checkArea.value === 'GOT')
+				checkArea.checked = true;
+			// update DOM
+			// create set div if it hasn't been already
+			if(cardsetArea === null){
+				cardsetArea = renderSetName(cardChildSnapshot.val().Set, setArea);
+				// update map
+				cardMap.push([]);
+				cardMap[row].push( new Array(SETMAX))
+				for(var index=0;index<SETMAX;index++){
+					cardMap[row][index] = 0;
+				}
+				row++;
+				col = 0;
+			}
+			cardsetArea.appendChild(checkArea);
+			cardsetArea.appendChild(cardArea);
+			// add DOM event listeners
+			checkArea.onclick = handleCheckboxClick;
+			// add card to new user's database tree
+			if(!returningVisitor)
+				setCardStatus(cardChildSnapshot.key, NOP);
+		});
+		// make mainboard visible
+		setArea.style.visibility = 'visible';
+	}
+	
+	function renderSetName(setToRender, whereToRender){
+		var dSet = document.createElement('div')
+		, setHeader = document.createElement('h2')
+		;
+		//TODO : get Set data
+		dSet.id = setToRender;
+		setHeader.setAttribute('class', 'mdl-card__title-text');
+		setRef.equalTo(setToRender).once('value').then(function(setSnapshot){
+			setSnapshot.forEach(function(setChildSnapshot){
+				if(setChildSnapshot.key === setToRender){
+					setHeader.textContent = setChildSnapshot.val().Name;
+					return true;
+				}
+			});
+		});
+		dSet.appendChild(setHeader);
+		return whereToRender.appendChild(dSet);
+	}
+
+	function setCardStatus(cardNo, action){
+		var cardData = {}
+			;
+
+		if(action === ADD){
+			console.log("setCardStatus: setting card number " + cardNo + " ownserhip in database");
+			cardData[cardNo] = {status: "GOT"};
+			userRef.update(cardData);
+		} else if(action === DEL){
+			console.log("setCardStatus: removing card number " + cardNo + " ownserhip in database");
+			cardData[cardNo] = {status:  "NEED"};
+			userRef.update(cardData);
+		} else {
+			console.log("setCardStatus: adding card number " + cardNo + " to database");
+			var cardStatus = {
+				Player: uCards.child(cardNo).val().Player,
+				Set: uCards.child(cardNo).val().Set,
+				status: "NEED"
+			};
+			cardData[cardNo] = cardStatus;
+			userRef.set(cardData);
+		}
+	}
+
+	function submitChanges(submitEvent){
+		var rows = cardMap.length
+			, cols = cardMap[0].length
+			, cardToSet
+			, actionToSet
+		;
+		console.log("submitChanges: writing changes to database");
+		
+		for(var index = 0; index < rows; index++){
+			for(var jndex = 0; jndex < cols; jndex++){
+				if(cardMap[index][jndex] > 0){
+					// childnodes of mainboard are set divs
+					var setToUpdate = document.getElementById('mainboard-checklist').childNodes;
+					// input tags have the information for card to update, they are everyother sibling after header
+					cardToSet = setToUpdate[index].childNodes[jndex*2 + 1].name;
+					actionToSet = cardMap[index][jndex];
+					console.log("Found action " + actionToSet + " on card number " + cardToSet);
+					setCardStatus(cardToSet, actionToSet);
+				}
+			}
+		}
+		document.getElementById('save-button').removeEventListener('click', submitChanges);
+		document.getElementById('save-button').disabled = true;
+	}
+
+	function checkForChanges(addRemove){
+		return addRemove > 0;
+	}
+
+	// DOM event handlers
+	function handleCheckboxClick(checkboxEvent){
+		var cardChecked = checkboxEvent.currentTarget.name
+			, checkboxState = checkboxEvent.currentTarget.checked
+			, inputValue = checkboxEvent.currentTarget.value 
+			, currentRow
+			, currentCol
+			;
+
+		currentRow = parseInt(checkboxEvent.currentTarget.getAttribute('row'));
+		currentCol = parseInt(checkboxEvent.currentTarget.getAttribute('col'));
+
+		if(checkboxState){
+			// TODO: queue card for addition to database
+			if(inputValue != "GOT"){
+				console.log("handleCheckboxClick: queue " + cardChecked + " for ownsership");
+				cardMap[currentRow][currentCol] = ADD;
+			}
+			else if (inputValue === "GOT"){
+				console.log("handleCheckboxClick: removing " + cardChecked + " from removal queue");
+				cardMap[currentRow][currentCol] = NOP;
+			}
+		}
+		else{
+			// TODO: queue card for deletion from database
+			if(inputValue === "GOT"){
+				console.log("handleCheckboxClick: queue " + cardChecked + " for removal");
+				cardMap[currentRow][currentCol] = DEL;
+			}
+			else{
+				console.log("handleCheckboxClick: removing " + cardChecked + " from ownership queue ");
+				cardMap[currentRow][currentCol] = NOP;
+			}
+		}
+		var rowToCheck = cardMap[currentRow];
+		if(rowToCheck.some(checkForChanges)){
+			document.getElementById('save-button').disabled = false;
+			document.getElementById('save-button').addEventListener('click', submitChanges, false);
+		}
+		else{
+			document.getElementById('save-button').disabled = true;
+			document.getElementById('save-button').removeEventListener('click', submitChanges);
+		}
+	}
+
+	window.onload = function() {
+      initApp();
+    };
+  </script>
+</head>
+<body>
+<div class="demo-layout mdl-layout mdl-js-layout mdl-layout--fixed-header">
+
+  <!-- Header section containing title -->
+  <header class="mdl-layout__header mdl-color-text--white mdl-color--light-blue-700">
+    <div class="mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-grid">
+      <div class="mdl-layout__header-row mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--8-col-desktop">
+        <h1>Kicklist</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="mdl-layout__content mdl-color--grey-100">
+    <div class="mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-grid">
+
+      <!-- Container for the demo -->
+      <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
+        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
+          <h2 id="sign-in-banner" class="mdl-card__title-text"></h2>
+        </div>
+        <div class="mdl-card__supporting-text mdl-color-text--grey-600" id="action-button-area">
+			<p id="sign-in-hint"></p>
+
+			<!-- Button that handles twitter sign-in/sign-out -->
+			<button disabled class="mdl-button mdl-js-button mdl-button--raised" id="twitter-sign-in"></button>
+			<!-- Button that handles editing profile -->
+			<button disabled class="mdl-button mdl-js-button mdl-button--raised" id="profile-button" style="visibility:hidden;">Edit Profile</button>
+
+			<!-- Container where we'll display the user details -->
+			<div class="user-details-container" style="display:none;">
+				<div id="sign-in-status">Unknown</div>
+				<pre><code id="account-details">null</code></pre>
+				<div>Email:</div>
+				<pre><code id="e-mail">null</code></pre>
+				<div>Kick Fan Name:</div>
+				<pre><code id="kick-fan-name">null</code></pre>
+			</div>
+			<div id="user-data-area">
+				<!-- Button that handles saving changes -->
+				<button disabled class="mdl-button mdl-js-button mdl-button--raised" id="save-button" style="visibility:hidden;">Save Changes</button>
+				<div id="mainboard-checklist" style="margin:1em;visibility:hidden;font" ></div>
+			</div>
+      
+		</div>
+		</div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
