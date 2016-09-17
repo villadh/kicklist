@@ -181,30 +181,55 @@ limitations under the License.
 				$('#kick-fan-name').html('Not provided');
 			}
 			// listen for updates to profile
-				$("#e-mail-tf").on("click",bUpdateEmailHandleClick);
+			$("#e-mail-tf").on("click",bUpdateEmailHandleClick);
 
-			// determine if user is a returning visitor or new
-			userRef.once('value').then(function(userSnapshot){
-				returningVisitor = userSnapshot.exists();
-				if(returningVisitor){	// show user their cards
+			// request set data and render main checklist
+			setRef.once('value')	// promise returning query
+				.then( function(setSnapshot){
+					console.log("onAuthStateChanged: found: " + setSnapshot.numChildren() + " records at ref " + setRef);
+					// render set data
+					showSets(setSnapshot,'#mainboard-checklist');
+					// request card datat
+					return cardRef.once('value');	// promise returning query
+				})	// end of setRef query fulfillment handler
+					.then(function(cardSnapshot){
+						console.log("onAuthStateChanged: found: " + cardSnapshot.numChildren() + " records at ref " + cardRef);
+						// render card data
+						renderCards(cardSnapshot);
+						// request user data
+						return userRef.once('value');	// promise returning query
+					})	// end of cardRef query fulfillment handler
+						.then(function(userSnapshot){
+							console.log("onAuthStateChanged: found: " + userSnapshot.numChildren() + " records at ref " + userRef);
+							
+							// determine if user is a returning visitor or new
+							returningVisitor = userSnapshot.exists();
+							var nextPage = "#";
+							if(returningVisitor){	// check off cards owned
 	// TODO: filter by user preferences
-	// TODO: check for new cards
-					renderCards(userSnapshot);
-					// navigate to main page, render jQuery widgets
-					$( ":mobile-pagecontainer" ).pagecontainer("change", "#list");
-					
-					console.log("onAuthStateChanged: Welcome back!");
-					console.log("onAuthStateChanged: check boxes found: " + $('input[type="checkbox"]').length);
-					//console.log("onAuthStateChanged: active cards found: " + userSnapshot.numChildren());
-				} else {	// show all marathon cards in database
-					console.log("onAuthStateChanged: Hello new visitor!");
-					cardRef.once('value').then(renderCards);
-					// navigate to profile page
-					$( ":mobile-pagecontainer" ).pagecontainer("change", "#profile");
-				}
+							// navigate to main page, render jQuery widgets
+								nextPage = "#list";
+								console.log("onAuthStateChanged: Welcome back!");
+								console.log("onAuthStateChanged: check boxes found: " + $('input[type="checkbox"]').length);
+								renderOwnership(userSnapshot);
+							} else {	// show all marathon cards in database
+								console.log("onAuthStateChanged: Hello new visitor!");
+								// navigate to profile page
+								nextPage = "#profile";
+							}	// end of returningVisitor if
+							$( ":mobile-pagecontainer" ).pagecontainer("change", nextPage);
+						}	// end of userRef query fulfillment handler
+						, function(err){
+							console.log(err);
+						}	// end of rejection handler
+			);	// end of async promise chain
+
+			
+
+
 				// listen for checkbox clicks
 				$("input").click(cbHandleClick);
-			});
+
 // TODO: save changes
 // TODO: save preferences
 		  } else {
@@ -228,14 +253,36 @@ limitations under the License.
       document.getElementById('social-sign-in').addEventListener('click', toggleSignIn, false);
     }
 
-	function showSets(){
+	function getDatasnaphsot(fbdbRef){
+		console.log("getDatasnaphsot: query to " + fbdbRef);
+		fbdbRef.once('value')	// promise returning query
+		.then( function(sets){
+				console.log("getDatasnaphsot: records found: " + sets.numChildren());
+			showSets(sets,'#mainboard-checklist');
+			return cardRef.once('value');	// promise returning query
+		})	// end of setRef query fulfillment handler
+			.then(function(cardSnapshot){
+				console.log("getDatasnaphsot: query to " + cardRef);
+				renderCards(cardSnapshot);
+				return userRef.once('value');	// promise returning query
+			})	// end of cardRef query fulfillment handler
+				.then(function(userSnapshot){
+					renderOwnership(userSnapshot);
+					}	// end of userRef query fulfillment handler
+					, function(err){
+						console.log(err);
+				}	// end of rejection handler
+		);	// end of async promise chain
+	}
+
+	function showSets(fbdbSnapshot, pageID){
 		console.log("showSets: list marathon sets");
 // TODO: filter on user preferences
-		setRef.once('value').then(function(setSnapshot){
+//		setRef.once('value').then(function(setSnapshot){
 			var compID = []
 				, cardCount = 0
 			;
-			setSnapshot.forEach(function(setChildSnapshot){
+			fbdbSnapshot.forEach(function(setChildSnapshot){
 				// create elements
 				var liSec = document.createElement('li')
 					, aSecLi = document.createElement('a')
@@ -279,7 +326,7 @@ limitations under the License.
 					$(nbComp).attr('data-role','navbar');
 					$(nbComp).append(ulComp);
 					$(twComp).append(nbComp);
-					$('#mainboard-checklist').append(twComp);
+					$(pageID).append(twComp);
 					// listen for secondary navbar clicks
 					$(twComp).on("click",nbSetHandleClick);
 				}
@@ -308,13 +355,12 @@ limitations under the License.
 			$('#mainboard-checklist').prepend(nbTop);
 			// return carc count
 			console.log("showSets: Total cards in database is " + cardCount);
-		});	// end of once value query
+//		});	// end of once value query
+		return cardCount;
 	}
 
 	function renderCards(cardsetSnapshot){
 		console.log('renderCards: displaying checklist');
-		$(document).off( "tabscreate");
-
 		uCards = cardsetSnapshot;
 		uCards.forEach(function(cardChildSnapshot){
 			var checkArea = document.createElement('input')
@@ -336,45 +382,26 @@ limitations under the License.
 			// set input tag value 
 			checkArea.value = cardChildSnapshot.child('status').val()
 			// check for ownsership
-			if(checkArea.value === 'GOT')
-				checkArea.checked = true;
+			//if(checkArea.value === 'GOT')
+			//	checkArea.checked = true;
 			// update DOM
 			$(cardsetArea).append(checkArea);
 			$(cardsetArea).append(cardArea).trigger( "create" );
-			// add DOM event listeners
-
-			// add card to new user's database tree
-			if(!returningVisitor)
-				setCardStatus(cardChildSnapshot.key, NOP);
-		});
+		});	// end of cards snapshot foreach loop
 	}
 
-	function renderSetName(setToRender, whereToRender){
-		var dSet = document.createElement('div')
-			, jqFS = document.createElement('fieldset')
-		, setHeader = document.createElement('legend')
+	function renderOwnership(fbdbSnapshot){
+		var cardCount = 0
 		;
-		
-		//TODO : get Set data
-		//dSet.id = setToRender;
-		dSet.setAttribute('class','ui-field-contain');
-		//$(setToRender).addClass('hide');
-		jqFS.id = setToRender;
-		jqFS.setAttribute('data-role','controlgroup');
-		//setHeader.setAttribute('class', 'mdl-card__title-text');
-		setRef.equalTo(setToRender).once('value').then(function(setSnapshot){
-			setSnapshot.forEach(function(setChildSnapshot){
-				if(setChildSnapshot.key === setToRender){
-					setHeader.textContent = setChildSnapshot.val().Name;
-					return true;
-				}
-			});
-		});
-
-		jqFS.appendChild(setHeader);
-		whereToRender.appendChild(dSet);
-
-		return dSet.appendChild(jqFS);
+		// check for ownsership
+		fbdbSnapshot.forEach(function(childSnapshot){
+			if(childSnapshot.child('status').val() === 'GOT'){
+				cbSelector = "#" + childSnapshot.key;
+				$(cbSelector).checked = true;
+				cardCount++;
+			}	
+		});	// end of foreach
+		return cardCount;
 	}
 
 	function setCardStatus(cardNo, action){
@@ -407,44 +434,38 @@ limitations under the License.
 		//$("#list-button").addClass("ui-btn-active");
 	}
 
-	function bulkBlockUpdate(){
-		$("#save-button").removeClass("ui-btn-active");
-		var cardIndex
-			, cbState
-			, cardStatus
-			, cardData = {}
+	function bulkBlockUpdate(fbdbRef, childList){
+		var cardData = {}
 			;
-		while(fbQueue.length){
-			cardIndex = fbQueue.pop();
-			cbState = document.getElementById(cardIndex).checked;
-			cardStatus = document.getElementById(cardIndex).value;
-			cardData[cardIndex] = {
+		while(childList.length){
+			var cardIndex = childList.pop()
+			, cbState = document.getElementById(cardIndex).checked
+			, cardStatus = document.getElementById(cardIndex).value
+			;
+/*			cardData[cardIndex] = {
 				Player : userRef.child(cardIndex).val().Player,
 				Set : userRef.child(cardIndex).val().Set,
 				Variant : userRef.child(cardIndex).val().Variant,
 			};
-			
+*/			
 			console.log("blockBulkUpdate: card number " + cardIndex  + " is " + cbState + " and has value of " + cardStatus);
 			// status logic
-			if((cbState) && (cardStatus === 'NEED') ){
+			if(cbState){
 				console.log("blockBulkUpdate: sending ADD action for card number " + cardIndex  + " with value " + cbState);
 				cardData[cardIndex] = {status : 'GOT'};
-			} else if((!cbState) && (cardStatus === 'GOT')){
+			} else {
 				console.log("blockBulkUpdate: sending DEL action for card number " + cardIndex  + " with value " + cbState);
 				cardData[cardIndex] = {status : 'NEED'};
-			} else {
-				console.log("blockBulkUpdate: card number " + cardIndex  + " does not require updating.  Status remains" + cardStatus);
-			}
-		}
+			}	// end of if
+		}	// end of childList while
 		// update database
-		userRef.update(cardData);
-		//$("#list-button").addClass("ui-btn-active");
-	}
+		fbdbRef.update(cardData);
+	}	// end of bulkBlockUpdate function
 
 	// DOM event handlers
 	function signoutHandleClick(signoutEvent){
 		toggleSignIn();
-	}
+	}	// end of signoutHandleClick function
 
 	function bUpdateEmailHandleClick(updateEmailEvent){
 		// TODO : add option to set kick name
@@ -453,13 +474,15 @@ limitations under the License.
 		//}, function(error) {
 				// An error happened.
 		//});
-		});
-	}
+		});	// end of updateEmail promise
+	}	// end of bUpdateEmailHandleClick function
 
 	function bSubmitHandleClick(submitEvent){
-		// re-set action buttons
-		//resetActionButtons();
+		console.log("bSubmitHandleClick: submitting changes to database");
+		bulkBlockUpdate(userRef, fbQueue);
+	}	// end of bSubmitHandleClick
 
+	function bSubmitHandleClickOLD(submitEvent){
 		var numCards = fbQueue.length
 			, cbState
 			, index = 0
@@ -481,12 +504,11 @@ limitations under the License.
 				setCardStatus(fbQueue[index], DEL);
 			} else {
 				console.log("bSubmitHandleClick: card number " + fbQueue[index] + " does not require updating.  Status remains" + cardStatus);
-			}
-		}
-	}
+			}	// end if
+		}	// end for loop
+	}	// end of bSubmitHandleClick function
 
-	function bClearAllHandleClick(){
-		$("#clear-button").removeClass("ui-btn-active");
+	function bClearAllHandleClick(bClearAllEvent){
 		console.log("bClearAllHandleClick: backing out all changes");
 		while(fbQueue.length){
 			// var cardToClear = document.getElementById(fbQueue.pop());
@@ -498,23 +520,23 @@ limitations under the License.
 			if($(cardToClearId).attr('value') === 'GOT')
 				$(cardToClearId).attr('checked', true);
 			$(cardToClearId).checkboxradio("refresh");
-		}
-		//$("#list-button").addClass("ui-btn-active");
-	}
+		}	// end of queue length while
+	}	// end of bClearAllHandleClick function
 
 	function nbHandleClick(nbEvent){
-		console.log("handleNavBarClick: active tabs found: " + document.getElementsByClassName("ui-button-active").length);
-	}
+		// TODO add event handling 
+	}	// end of nbHandleClick function
 
 	function nbCompHandleClick(nbCompEvent){
 		console.log();
-	}
+	}	// end of nbCompHandleClick funciton 
 
 	function nbSetHandleClick(nbSetEvent){
+		// set active status of top tier navbar when second tier navbar is clicked
 		console.log("handleSetNavBarClick: Clicked on tab for set: " + nbSetEvent.currentTarget.id);
 		var compTabId = "#" + nbSetEvent.currentTarget.id + "-anchor";
 		$(compTabId).addClass("ui-btn-active");
-	}
+	}	// end of nbSetHandleClick function
 
 	function cbHandleClick(cbEvent){
 		var cardNo = cbEvent.currentTarget.name
@@ -532,8 +554,8 @@ limitations under the License.
 			// TODO: remove card from fbQueue
 			console.log("cbHandleClick: removing " + cardNo + " from queue");
 			fbQueue.splice(cardQueued, 1);
-		}
-	}
+		}	// end cardQuese if
+	}	// end of cbHandleClick function
 
 $( document ).on( "mobileinit", function() {
   $.mobile.loader.prototype.options.text = "loading card checklist";
@@ -543,7 +565,6 @@ $( document ).on( "mobileinit", function() {
 });
 	$( document ).on('ready', function(event){// Listening for page init to complete
 			initApp();
-			showSets();
 		}
 	);
   </script>
