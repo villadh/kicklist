@@ -253,28 +253,6 @@ limitations under the License.
       document.getElementById('social-sign-in').addEventListener('click', toggleSignIn, false);
     }
 
-	function getDatasnaphsot(fbdbRef){
-		console.log("getDatasnaphsot: query to " + fbdbRef);
-		fbdbRef.once('value')	// promise returning query
-		.then( function(sets){
-				console.log("getDatasnaphsot: records found: " + sets.numChildren());
-			showSets(sets,'#mainboard-checklist');
-			return cardRef.once('value');	// promise returning query
-		})	// end of setRef query fulfillment handler
-			.then(function(cardSnapshot){
-				console.log("getDatasnaphsot: query to " + cardRef);
-				renderCards(cardSnapshot);
-				return userRef.once('value');	// promise returning query
-			})	// end of cardRef query fulfillment handler
-				.then(function(userSnapshot){
-					renderOwnership(userSnapshot);
-					}	// end of userRef query fulfillment handler
-					, function(err){
-						console.log(err);
-				}	// end of rejection handler
-		);	// end of async promise chain
-	}
-
 	function showSets(fbdbSnapshot, pageID){
 		console.log("showSets: list marathon sets");
 // TODO: filter on user preferences
@@ -293,7 +271,7 @@ limitations under the License.
 					, ulID = "#" + ulCompID
 					, twID = "#"+ compTag
 					, fsCards = document.createElement('fieldset')
-					, fsID =  setChildSnapshot.key + "-fs"
+					//, fsID = setChildSnapshot.key + "-fs"
 					, hCards =  document.createElement('legend')
 					;
 
@@ -303,7 +281,8 @@ limitations under the License.
 				// set up fieldset for cards
 				$(tabSec).addClass('ui-field-contain');
 				$(fsCards).attr('data-role','controlgroup');
-				$(fsCards).attr('id', fsID);
+				//$(fsCards).attr('id', fsID);
+				fsCards.id = setChildSnapshot.key + "-fs";
 				$(hCards).text(setChildSnapshot.val().Name);
 				$(fsCards).append(hCards);
 				$(tabSec).append(fsCards);
@@ -365,15 +344,16 @@ limitations under the License.
 		uCards.forEach(function(cardChildSnapshot){
 			var checkArea = document.createElement('input')
 				, cardArea = document.createElement('label')
-				, fsCardSetID = cardChildSnapshot.val().Set + "-fs"
-				, selectfsCardSetID = "#"+ fsCardSetID
-				, cardsetArea = document.getElementById(fsCardSetID)
+				//, fsCardSetID = cardChildSnapshot.val().Set + "-fs"
+				//, selectfsCardSetID = "#"+ fsCardSetID
+				//, cardsetArea = document.getElementById(fsCardSetID)
+				cardsetArea = document.getElementById(cardChildSnapshot.val().Set + "-fs")
 				;
 
 			checkArea.type = "checkbox";
 			checkArea.id = cardChildSnapshot.key;
 			checkArea.name = cardChildSnapshot.key;
-			checkArea.setAttribute("class", "custom");
+			//checkArea.setAttribute("class", "custom");
 			cardArea.setAttribute('for', cardChildSnapshot.key);
 			cardArea.textContent+= cardChildSnapshot.val().Player;
 			// check for card variant parallel
@@ -386,9 +366,10 @@ limitations under the License.
 			//	checkArea.checked = true;
 			// update DOM
 			$(cardsetArea).append(checkArea);
-			$(cardsetArea).append(cardArea).trigger( "create" );
+			$(cardsetArea).append(cardArea);
+			//.trigger( "create" );
 		});	// end of cards snapshot foreach loop
-	}
+	}	// end of function renderCards
 
 	function renderOwnership(fbdbSnapshot){
 		var cardCount = 0
@@ -402,7 +383,7 @@ limitations under the License.
 			}	
 		});	// end of foreach
 		return cardCount;
-	}
+	}	// end of function renderOwnership
 
 	function setCardStatus(cardNo, action){
 		$("#save-button").removeClass("ui-btn-active");
