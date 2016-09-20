@@ -106,12 +106,16 @@ limitations under the License.
         if (user) {
         	// User is signed in.
         	//$( ":mobile-pagecontainer" ).pagecontainer("change", "#welcome");
+
+		  document.getElementById('sign-in-banner').textContent = 'Welcome to Kicklist';
+		  document.getElementById('sign-in-hint').textContent = 'Track your marathon sets with this checklist.';
+
         	var displayName = user.displayName;
         	var email = user.email;
         	var emailVerified = user.emailVerified;
         	var photoURL = user.photoURL;
         	var isAnonymous = user.isAnonymous;
-		var providerData = user.providerData;
+			var providerData = user.providerData;
 			uid = user.uid;
 			var kickfanname = ''
 	  			, wImg = document.getElementById("social-photo")
@@ -139,6 +143,8 @@ limitations under the License.
 			} else {
 				$('#e-mail').html('Not provided');
 			}
+			// listen for updates to profile
+			$("#e-mail-update").on("click",bUpdateEmailHandleClick);
 			if(kickfanname){
 				$('#kick-fan-name').html(kickfanname);
 			} else {
@@ -162,8 +168,6 @@ limitations under the License.
 			$( ":mobile-pagecontainer" ).pagecontainer("change", nextPage);
 			// listen for checkbox clicks
 			$("input").click(cbHandleClick);
-			// listen for updates to profile
-			$("#e-mail-tf").on("click",bUpdateEmailHandleClick);
 // TODO: save changes
 // TODO: save preferences
 		  } else {
@@ -174,8 +178,6 @@ limitations under the License.
 
           // navigate to sign in page
           $( ":mobile-pagecontainer" ).pagecontainer("change", "#sign-in");
-			// display sign in button area
-		  //$('#action-button-area').show();
 // TODO : clear checklist area
           // [END_EXCLUDE]
         }
@@ -188,7 +190,12 @@ limitations under the License.
     }
 
 	function renderChecklist(){
-		$.mobile.loading( "show");
+		$.mobile.loading( "show",
+			{
+				text : "loading card checklist",
+				textVisible : true
+			}
+		);
 		console.log("renderChecklist: requesting set data");
 		setRef.once('value')	// promise returning query
 			.then( function(setSnapshot){
@@ -430,13 +437,26 @@ limitations under the License.
 	}	// end of signoutHandleClick function
 
 	function bUpdateEmailHandleClick(updateEmailEvent){
+		var tEmail = document.getElementsByName(updateEmailEvent.currentTarget.name)[0]
+		, tUpdate = tEmail.value;
+		$(tEmail).val("");
 		// TODO : add option to set kick name
-		user.updateEmail(updateEmailEvent.currentTarget.value).then(function() {
-			// Update successful.
-		//}, function(error) {
-				// An error happened.
-		//});
-		});	// end of updateEmail promise
+		firebase.auth().currentUser.updateEmail(tUpdate)
+			.then(
+				function() {
+					$( ":mobile-pagecontainer" ).pagecontainer("change", "#fbdb-success", {transition : "pop"});
+//					console.log("bUpdateEmailHandleClick: E-mail update success.");
+				})
+			.catch(function(error){
+// TODO : handle error.code === "auth/requires-recent-login"
+					if(error.code === "auth/invalid-email"){
+						alert("Could not update your email to " + tUpdate + " " + error.message );
+					}else{				
+						console.error(error);
+						throw error;
+					}
+				}
+			);	// end of updateEmail promise
 	}	// end of bUpdateEmailHandleClick function
 
 	function bSubmitHandleClick(submitEvent){
@@ -520,8 +540,6 @@ limitations under the License.
 	}	// end of cbHandleClick function
 
 $( document ).on( "mobileinit", function() {
-  $.mobile.loader.prototype.options.text = "loading card checklist";
-  $.mobile.loader.prototype.options.textVisible = true;
 //  $.mobile.loader.prototype.options.theme = "a";
 //  $.mobile.loader.prototype.options.html = "";
 });
@@ -596,7 +614,6 @@ $( document ).on( "mobileinit", function() {
 <div data-role="page" id="profile">
 	<div data-role="header" data-add-back-btn="true">
 		<h1>Kicklist Profile</h1>
-
 	</div><!-- /header -->
 	<div data-role="content" class="user-details-container">
 		<!-- Listwview widget displaying user details -->
@@ -608,28 +625,26 @@ $( document ).on( "mobileinit", function() {
 			<li data-role="list-divider">Contact Information</li>
 			<li><a data-rel="dialog" data-transition="pop" href="#update-e-mail" class="ui-btn ui-icon-edit ui-btn-inline ui-btn-icon-right">Email: <span id="e-mail"></span></a></li>
 			<li><a data-rel="dialog" data-transition="pop" href="#update-kick-fan-name" class="ui-btn ui-icon-edit ui-btn-inline ui-btn-icon-right">Kick Fan Name: <span id="kick-fan-name"></span></a></li>
-			<li data-role="list-divider">Credentials</li>
-			<li><a data-rel="dialog" data-transition="pop" href="#update-password" class="ui-btn">Update Password</a></li>
+			<!-- <li data-role="list-divider">Credentials</li>
+			Email password authentication not supported yet <li><a data-rel="dialog" data-transition="pop" href="#update-password" class="ui-btn">Update Password</a></li> -->
 		</ul>
 	</div><!-- /content -->
 	<div data-role="footer" data-position="fixed">
-		
 	</div><!-- /footer -->
 </div><!-- /page profile -->
 
 <!-- Start of fourth page: #update-e-mail -->
 <div data-role="page" id="update-e-mail">
-
 	<div data-role="header" data-theme="e">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
-
 	<div data-role="content" data-theme="d">	
 		<h2>Set E-mail</h2>
-			<div data-role="fieldcontain">
-				<label for="e-mail-tf">Enter new E-mail:</label>
-	        	<input type="e-mail" name="e-mail-tf" id="e-mail-tf" value="" />
-			</div>
+		<div class="ui-field-contain">
+			<label for="e-mail-tf">Enter new E-mail:</label>
+        	<input type="e-mail" name="e-mail-tf" id="e-mail-tf" value="">
+			<input type="button" name="e-mail-tf" id="e-mail-update" value="Update">
+		</div>
 	</div><!-- /content -->
 	<div data-role="footer">
 		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
@@ -637,42 +652,46 @@ $( document ).on( "mobileinit", function() {
 </div><!-- /page popup -->
 <!-- Start of fifth page: #update-kick-fan-name -->
 <div data-role="page" id="update-kick-fan-name">
-
 	<div data-role="header" data-theme="e">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
-
 	<div data-role="content" data-theme="d">	
 		<h2>Set Kick Name</h2>
-		<div data-role="fieldcontain">
+		<div class="ui-field-contain">
 			<label for="kick-fan-name-tf">Enter your Kick fan name:</label>
    			<input type="text" name="kick-fan-name-tf" id="kick-fan-name-tf" value="">
 		</div>
 	</div><!-- /content -->
-	
 	<div data-role="footer">
 		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
 <!-- Start of sixth page: #update-password -->
 <div data-role="page" id="update-password">
-
 	<div data-role="header" data-theme="e">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
-
 	<div data-role="content" data-theme="d">	
 		<h2>Set Password</h2>
-		<div data-role="fieldcontain">
+		<div class="ui-field-contain">
        		<label for="password">Enter a new Password:</label>
 	    	<input type="password" name="password" id="password" value="" />
 		</div>
 	</div><!-- /content -->
-	
 	<div data-role="footer">
 		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-
+<!-- Start of database write success page: #fbdb-success -->
+<div data-role="page" id="fbdb-success">
+	<div data-role="header" data-add-back-btn="true">
+		<h1>Update Successful</h1>
+	</div><!-- /header -->
+	<div data-role="content">	
+		<p>Your information has been updated</p>
+	</div><!-- /content -->
+	<div data-role="footer">
+	</div><!-- /footer -->
+</div><!-- /page popup -->
 </body>
 </html>
