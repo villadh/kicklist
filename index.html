@@ -48,6 +48,7 @@ limitations under the License.
 		, NOP = 0
 		, ADD = 1
 		, DEL = 2
+		, FAIL = -1
 		;
 	// user variables
 	var uid
@@ -139,17 +140,6 @@ limitations under the License.
 			$( ":mobile-pagecontainer" ).on( "pagecontainerchange", function( event, ui ) {
 				$("#list-button").addClass("ui-btn-active");
 			});
-			$( ":mobile-pagecontainer" ).on( "pagecontainerbeforechange", function( event, ui ) {
-				console.log("pagecontainerbeforechange handler: Navigating to " + ui.toPage);
-				// populate account profile page
-				if(ui.toPage.toString().endsWith("#profile")){
-					console.log("pagecontainerbeforechange handler: updating profile page " + kickfanname);
-					if(email)
-						$('#e-mail').text(email);
-					if(kickfanname)
-						$('#kick-fan-name').text(kickfanname);
-				}	// end of profile page if
-			} );
 			// listen for updates to profile
 			$("#e-mail-update").on("click",bUpdateEmailHandleClick);
 			$("#kick-fan-name-update").on("click",bUpdateKickFanNameHandleClick);
@@ -231,14 +221,14 @@ limitations under the License.
 								// navigate to profile page
 								nextPage = "#profile";
 							}	// end of returningVisitor if
-			 //listen for action button clicks
-			$('#sign-out-button').click(toggleSignIn);
-			$('#save-button').click(bSubmitHandleClick);
-			$('#clear-button').click(bClearAllHandleClick);
+							//listen for action button clicks
+							$('#sign-out-button').click(toggleSignIn);
+							$('#save-button').click(bSubmitHandleClick);
+							$('#clear-button').click(bClearAllHandleClick);
 							// navigate to next page
 							$( ":mobile-pagecontainer" ).pagecontainer("change", nextPage);
 							// listen for checkbox clicks
-							$("input").click(cbHandleClick);
+							$(":checkbox").click(cbHandleClick);
 						}// end of userRef query fulfillment handler
 						).catch(function(err){
 							$.mobile.loading( "hide");
@@ -356,12 +346,9 @@ limitations under the License.
 			// check for card variant parallel
 			if(cardChildSnapshot.child('Variant').exists())
 				cardArea.textContent+= " " + cardChildSnapshot.val().Variant;
-			// set input tag value 
-			checkArea.value = cardChildSnapshot.child('status').val()
 			// update DOM
 			$(cardsetArea).append(checkArea);
 			$(cardsetArea).append(cardArea);
-			//.trigger( "create" );
 		});	// end of cards snapshot foreach loop
 		return cardsetSnapshot.numChildren()
 	}	// end of function renderCards
@@ -372,66 +359,15 @@ limitations under the License.
 		fbdbSnapshot.forEach(function(childSnapshot){
 			if(childSnapshot.child('status').val() === 'GOT'){
 				document.getElementById(childSnapshot.key).checked = true;
+				document.getElementById(childSnapshot.key).value = 'GOT';
 				ownedCards++;
-			}	
+			}
 		});	// end of foreach
 		console.log("renderOwnership: " + uid + " owns " + ownedCards + " marathon cards");
 		$( ":mobile-pagecontainer" ).pagecontainer("change", "#list");
 		$.mobile.loading( "hide");		
 		return ownedCards;
 	}	// end of function renderOwnership
-
-	function setCardStatus(cardNo, action){
-		$("#save-button").removeClass("ui-btn-active");
-		var cardRef = firebase.database().ref('users/' + uid +'/cards/' + cardNo)
-			, cardData = {}
-			;
-		
-		if(action === ADD){
-			console.log("setCardStatus: setting card number " + cardNo + " ownserhip in database");
-			cardData = {status: "GOT"};
-			cardRef.update(cardData);
-		} else if(action === DEL){
-			console.log("setCardStatus: removing card number " + cardNo + " ownserhip in database");
-			cardData = {status:  "NEED"};
-			cardRef.update(cardData);
-		} else {
-			console.log("setCardStatus: adding card number " + cardNo + " to database for visitor " + uid);
-			var cardStatus = {
-				Player: uCards.child(cardNo).val().Player,
-				Set: uCards.child(cardNo).val().Set,
-				status: "NEED"
-			};
-			if(uCards.child(cardNo).child('Variant').exists())
-				cardStatus["Variant"] = uCards.child(cardNo).val().Variant;
-
-			cardData[cardNo] = cardStatus;
-			userRef.child('cards/' + cardNo).set(cardData[cardNo]);
-		}
-	}	// end of function setCardStatus
-
-	function bulkBlockUpdate(fbdbRef, childList){
-		var cardData = {}
-			;
-		while(childList.length){
-			var cardIndex = childList.pop()
-			, cbState = document.getElementById(cardIndex).checked
-			, cardStatus = document.getElementById(cardIndex).value
-			;
-			
-			console.log("blockBulkUpdate: card number " + cardIndex  + " is " + cbState + " and has value of " + cardStatus);
-			// status logic
-			if(cbState){
-				console.log("blockBulkUpdate: sending ADD action for card number " + cardIndex  + " with value " + cbState);
-				cardData[cardIndex] = {status : 'GOT'};
-			} else {
-				console.log("blockBulkUpdate: sending DEL action for card number " + cardIndex  + " with value " + cbState);
-				cardData[cardIndex] = {status : 'NEED'};
-			}	// end of if
-		}	// end of childList while
-		// update database
-		fbdbRef.update(cardData);
-	}	// end of bulkBlockUpdate function
 
 	// DOM event handlers
 	function signoutHandleClick(signoutEvent){
@@ -450,7 +386,8 @@ limitations under the License.
 			.then(
 				function() {
 					$( ":mobile-pagecontainer" ).pagecontainer("change", "#fbdb-success", {transition : "pop"});
-					kickfanname = tUpdate ;
+					kickfanname = tUpdate;
+					$('#kick-fan-name').text(kickfanname);
 				}
 				, function(err){
 					console.error("bUpdateKickFanNameHandleClick: " + err.message);
@@ -469,6 +406,7 @@ limitations under the License.
 				function() {
 					$( ":mobile-pagecontainer" ).pagecontainer("change", "#fbdb-success", {transition : "pop"});
 					email = tUpdate ;
+					$('#e-mail').text(email);
 				})
 			.catch(function(error){
 // TODO : handle error.code === "auth/requires-recent-login"
@@ -483,8 +421,54 @@ limitations under the License.
 	}	// end of bUpdateEmailHandleClick function
 
 	function bSubmitHandleClick(submitEvent){
+		// is there anything to update?
+		if(!fbQueue.length){
+			console.log("bSubmitHandleClick: No changes to submit");
+			$(this).removeClass("ui-btn-active");
+			$("#list-button").addClass("ui-btn-active");
+			// queue was empty, return no operations completed
+			return NOP;
+		}
 		console.log("bSubmitHandleClick: submitting changes to database");
-		bulkBlockUpdate(userRef, fbQueue);
+		var cardData = {}
+		,	index		
+			;
+		// determine if each card in queue will be added or deleted
+		for(index = 0; index < fbQueue.length; index++){
+			var cardIndex = document.getElementById(fbQueue[index])
+			, cbState = cardIndex.checked
+			, cardStatus = cardIndex.value
+			;
+			
+			// status logic
+			if(cbState){
+				console.log("bSubmitHandleClick: sending ADD action for card number " + fbQueue[index] + " with value of " + cardStatus + " and checkBox " + cbState);
+				cardData[fbQueue[index]] = {status : 'GOT'};
+			} else {
+				console.log("bSubmitHandleClick: sending DEL action for card number " + fbQueue[index] + " with value of " + cardStatus + " and checkBox " + cbState);
+				cardData[fbQueue[index]] = {status : 'NEED'};
+			}	// end of if
+		}	// end of childList for loop
+		// update database
+		userRef.child('cards/').update(cardData,
+			function(){
+				// update success, display database update success page
+				$( ":mobile-pagecontainer" ).pagecontainer("change", "#fbdb-success", {transition : "pop"});
+				// update checkbox values
+				while(fbQueue.length){
+					cardIndex = document.getElementById(fbQueue.pop())
+					cardStatus = cardIndex.value;
+					if(cardStatus === 'GOT'){
+						cardIndex.value = 'NEED';
+					} else {
+						cardIndex.value = 'GOT';
+					}	// end of if
+				}	// end of childList while
+				// return number of records updated
+				return (index -1);
+			}
+		);	
+			return FAIL;
 	}	// end of bSubmitHandleClick
 
 	function bClearAllHandleClick(bClearAllEvent){
@@ -500,6 +484,8 @@ limitations under the License.
 				$(cardToClearId).attr('checked', true);
 			$(cardToClearId).checkboxradio("refresh");
 		}	// end of queue length while
+		$(this).removeClass("ui-btn-active");
+		$("#list-button").addClass("ui-btn-active");
 	}	// end of bClearAllHandleClick function
 
 	function nbHandleClick(nbEvent){
@@ -512,7 +498,6 @@ limitations under the License.
 
 	function nbSetHandleClick(nbSetEvent){
 		// set active status of top tier navbar when second tier navbar is clicked
-		console.log("handleSetNavBarClick: Clicked on tab for set: " + nbSetEvent.currentTarget.id);
 		var compTabId = "#" + nbSetEvent.currentTarget.id + "-anchor";
 		$(compTabId).addClass("ui-btn-active");
 	}	// end of nbSetHandleClick function
@@ -536,10 +521,6 @@ limitations under the License.
 		}	// end cardQuese if
 	}	// end of cbHandleClick function
 
-$( document ).on( "mobileinit", function() {
-//  $.mobile.loader.prototype.options.theme = "a";
-//  $.mobile.loader.prototype.options.html = "";
-});
 	$( document ).on('ready', function(event){// Listening for page init to complete
 		initApp();
 		renderChecklist();
@@ -557,10 +538,10 @@ $( document ).on( "mobileinit", function() {
 	<div data-role="content" class="ui-content">
 		<!-- -->
 		<div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
-	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
-	          <h2 id="sign-in-banner" class="mdl-card__title-text"></h2>
-	        </div>
-	        <div class="mdl-card__supporting-text mdl-color-text--grey-600" id="action-button-area">
+			<div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
+				<h2 id="sign-in-banner" class="mdl-card__title-text"></h2>
+	    </div>
+			<div class="mdl-card__supporting-text mdl-color-text--grey-600" id="action-button-area">
 				<p id="sign-in-hint"></p>
 				<!-- Button that handles twitter sign-in/sign-out -->
 				<button disabled class="mdl-button mdl-js-button mdl-button--raised" id="social-sign-in">Sign in with Twitter</button>
@@ -640,16 +621,16 @@ $( document ).on( "mobileinit", function() {
 		<div class="ui-field-contain">
 			<label for="e-mail-tf">Enter new E-mail:</label>
         	<input type="e-mail" name="e-mail-tf" id="e-mail-tf" value="">
-			<input type="button" name="e-mail-tf" id="e-mail-update" value="Update">
+			<input type="button" name="e-mail-tf" id="e-mail-update" value="Update" class="update-button">
 		</div>
 	</div><!-- /content -->
 	<div data-role="footer">
-		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
+		<a href="#profile" data-rel="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
 <!-- Start of fifth page: #update-kick-fan-name -->
 <div data-role="page" id="update-kick-fan-name">
-	<div data-role="header" data-theme="e">
+	<div data-role="header">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
 	<div data-role="content" >
@@ -657,19 +638,19 @@ $( document ).on( "mobileinit", function() {
 		<div class="ui-field-contain">
 			<label for="kick-fan-name-tf">Enter your Kick fan name:</label>
    			<input type="text" name="kick-fan-name-tf" id="kick-fan-name-tf" value="">
-   			<input type="button" name="kick-fan-name-tf" id="kick-fan-name-update" value="Update">
+   			<input type="button" name="kick-fan-name-tf" id="kick-fan-name-update" value="Update" class="update-button">
 		</div>
 	</div><!-- /content -->
 	<div data-role="footer">
-		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
+		<a href="#profile" data-rel="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
 <!-- Start of sixth page: #update-password -->
-<div data-role="page" id="update-password">
-	<div data-role="header" data-theme="e">
+<div data-role="page" id="update-password" >
+	<div data-role="header">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
-	<div data-role="content" data-theme="d">	
+	<div data-role="content">	
 		<h2>Set Password</h2>
 		<div class="ui-field-contain">
        		<label for="password">Enter a new Password:</label>
@@ -681,7 +662,7 @@ $( document ).on( "mobileinit", function() {
 	</div><!-- /footer -->
 </div><!-- /page popup -->
 <!-- Start of database write success page: #fbdb-success -->
-<div data-role="page" id="fbdb-success">
+<div data-role="page" id="fbdb-success" data-dialog="true">
 	<div data-role="header" data-add-back-btn="true">
 		<h1>Update Successful</h1>
 	</div><!-- /header -->
