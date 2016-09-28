@@ -55,8 +55,8 @@ limitations under the License.
 	, returningVisitor = false
 	;
 	// database variables
-	var setRef = firebase.database().ref('/Sets').orderByKey()
-	, cardRef = firebase.database().ref('cards').orderByChild('Set')
+	var setRef = firebase.database().ref('Sets')
+	, cardRef = firebase.database().ref('cards')
 	, userRef
 	;
 	// card variables
@@ -172,13 +172,13 @@ limitations under the License.
 			}
 		);
 		console.log("renderChecklist: requesting set data");
-		setRef.once('value')	// promise returning query
+		setRef.orderByKey().once('value')	// promise returning query
 			.then( function(setSnapshot){
 				console.log("renderChecklist: found: " + setSnapshot.numChildren() + " records at ref " + setRef);
 				// render set data
 				renderSets(setSnapshot,'#mainboard-checklist');			
 				// request card data
-				return cardRef.once('value');	// promise returning query
+				return cardRef.orderByChild('Set').once('value');	// promise returning query
 			}	// end of setRef query fulfillment handler
 			)
 				.then(function(cardSnapshot){
@@ -252,7 +252,6 @@ limitations under the License.
 	function renderSets(fbdbSnapshot, pageID){
 		console.log("renderSets: list marathon sets");
 // TODO: filter on user preferences
-//		setRef.once('value').then(function(setSnapshot){
 			var compID = []
 			;
 			fbdbSnapshot.forEach(function(setChildSnapshot){
@@ -275,7 +274,6 @@ limitations under the License.
 				// set up fieldset for cards
 				$(tabSec).addClass('ui-field-contain');
 				$(fsCards).attr('data-role','controlgroup');
-				//$(fsCards).attr('id', fsID);
 				fsCards.id = setChildSnapshot.key + "-fs";
 				$(hCards).text(setChildSnapshot.val().Name);
 				$(fsCards).append(hCards);
@@ -324,7 +322,6 @@ limitations under the License.
 			$(nbTop).append(ulTop);			
 			$('#mainboard-checklist').attr('data-role','tabs');
 			$('#mainboard-checklist').prepend(nbTop);
-//		});	// end of once value query
 		return fbdbSnapshot.numChildren();
 	}	// end of function renderSets
 
@@ -340,7 +337,6 @@ limitations under the License.
 			checkArea.type = "checkbox";
 			checkArea.id = cardChildSnapshot.key;
 			checkArea.name = cardChildSnapshot.key;
-			//checkArea.setAttribute("class", "custom");
 			cardArea.setAttribute('for', cardChildSnapshot.key);
 			cardArea.textContent+= cardChildSnapshot.val().Player;
 			// check for card variant parallel
@@ -527,6 +523,22 @@ limitations under the License.
 	}
 	);
   </script>
+  <script language="javascript" type="text/javascript">window.twttr = (function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0],
+    t = window.twttr || {};
+  if (d.getElementById(id)) return t;
+  js = d.createElement(s);
+  js.id = id;
+  js.src = "https://platform.twitter.com/widgets.js";
+  fjs.parentNode.insertBefore(js, fjs);
+ 
+  t._e = [];
+  t.ready = function(f) {
+    t._e.push(f);
+  };
+ 
+  return t;
+}(document, "script", "twitter-wjs"));</script>
 </head>
 <body>
 <!-- Start of first page: #sign-in -->
@@ -538,10 +550,10 @@ limitations under the License.
 	<div data-role="content" class="ui-content">
 		<!-- -->
 		<div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
-			<div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
-				<h2 id="sign-in-banner" class="mdl-card__title-text"></h2>
-	    </div>
-			<div class="mdl-card__supporting-text mdl-color-text--grey-600" id="action-button-area">
+	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
+	          <h2 id="sign-in-banner" class="mdl-card__title-text"></h2>
+	        </div>
+	        <div class="mdl-card__supporting-text mdl-color-text--grey-600" id="action-button-area">
 				<p id="sign-in-hint"></p>
 				<!-- Button that handles twitter sign-in/sign-out -->
 				<button disabled class="mdl-button mdl-js-button mdl-button--raised" id="social-sign-in">Sign in with Twitter</button>
@@ -551,7 +563,7 @@ limitations under the License.
 	<div id="footer" data-role="footer" data-position="fixed" >
 	</div><!-- /footer -->
 </div><!-- /page one -->
-
+<!-- Start of page: #welcome -->
 <div data-role="page" id="welcome">
 
 	<div data-role="header" data-position="fixed">
@@ -565,7 +577,7 @@ limitations under the License.
 
 	<div data-role="footer">
 	</div><!-- /footer -->
-</div><!-- /page -->
+</div><!-- /page #welcome-->
 
 <!-- Start of second page: #list -->
 <div data-role="page" id="list">
@@ -610,8 +622,26 @@ limitations under the License.
 	<div data-role="footer" data-position="fixed">
 	</div><!-- /footer -->
 </div><!-- /page profile -->
+<!-- Start of fourth page: #about -->
+<div data-role="page" id="about">
+	<div data-role="header" data-add-back-btn="true">
+		<h1>Kicklist | About</h1>
+	</div><!-- /header -->
+	<div data-role="content">
+	<ul data-role="listview">
+			<li data-role="list-divider">Technical Support</li>
+			<li><a id="contact-us-button" class="ui-btn" href="https://hsvinnovations.wordpress.com/contact/">Contact HSVInnovations</a></li>
+			<li data-role="list-divider">Follow Us</li>
+			<li>		<a class="twitter-follow-button" href="https://twitter.com/Kick17List" data-show-count="false" data-size="large">Follow @Kick17List</a></li>
+		</ul>
 
-<!-- Start of fourth page: #update-e-mail -->
+		
+	</div><!-- /content -->
+	<div data-role="footer" data-position="fixed">
+	</div><!-- /footer -->
+</div><!-- /page about -->
+
+<!-- Start of pop up page: #update-e-mail -->
 <div data-role="page" id="update-e-mail">
 	<div data-role="header">
 		<h1>Update Profile</h1>
@@ -628,9 +658,9 @@ limitations under the License.
 		<a href="#profile" data-rel="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of fifth page: #update-kick-fan-name -->
+<!-- Start of pop up page: #update-kick-fan-name -->
 <div data-role="page" id="update-kick-fan-name">
-	<div data-role="header">
+	<div data-role="header" >
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
 	<div data-role="content" >
@@ -645,8 +675,8 @@ limitations under the License.
 		<a href="#profile" data-rel="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of sixth page: #update-password -->
-<div data-role="page" id="update-password" >
+<!-- Start of pop up page: #update-password -->
+<div data-role="page" id="update-password">
 	<div data-role="header">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
@@ -661,7 +691,7 @@ limitations under the License.
 		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of database write success page: #fbdb-success -->
+<!-- Start of pop up page: database write success #fbdb-success -->
 <div data-role="page" id="fbdb-success" data-dialog="true">
 	<div data-role="header" data-add-back-btn="true">
 		<h1>Update Successful</h1>
