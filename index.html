@@ -20,6 +20,7 @@ limitations under the License.
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script>
 	<title>Kick17 Marathon Checklist</title>
+	<meta name="description" content="Track your marathon sets with this checklist">
 
   <!-- Material Design Theming -->
 	<link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
@@ -551,6 +552,7 @@ limitations under the License.
 	}	// end of cbHandleClick function
 
 	$( document ).on('ready', function(event){// Listening for page init to complete
+		$("#tagline").text($("meta[name='description']").prop("content"));
 		initApp();
 		renderChecklist();
 	}
@@ -568,10 +570,41 @@ limitations under the License.
   t._e = [];
   t.ready = function(f) {
     t._e.push(f);
-  };
- 
+  };	
   return t;
-}(document, "script", "twitter-wjs"));</script>
+}(document, "script", "twitter-wjs"));	// end of widget-js async load
+  twttr.ready(
+  function (twttr) {
+  	
+	twttr.widgets.createFollowButton(
+	"Kick17List",
+		document.getElementById("button-follow"),
+		{
+			size: "large",
+			count: "none"
+		}
+	)	// promise returning createFollowButton
+	.then( twttr.widgets.createShareButton(
+		location.origin + location.pathname,
+		document.getElementById("button-tweet"),
+		{
+			text: $("meta[name='description']").prop("content"),
+			via: "Kick17List",
+			size: "large"
+		}
+	)	// promise returning createShareButton
+	)
+	.then( function(){
+		$("#list-twitter").show();
+	},	// end of createShareButton resolution
+	function(twttrError){
+		console.log(twttrError.message);
+	}	// end of createShareButton rejection
+	);	// end of twitter promise chain	
+  }
+);// end of twttr.ready
+
+</script>
 </head>
 <body>
 <div data-role="page" id="list">
@@ -586,7 +619,7 @@ limitations under the License.
 	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
 	        </div>
 	        <div class="mdl-card__supporting-text mdl-color-text--grey-600">
-				<p>Track your marathon sets with this checklist.</p>
+				<p id="tagline"></p>
 			</div>
 		</div>	
 		<div id="mainboard-checklist" style="display:none"></div> <!-- end of Mainboard Tabs Area -->
@@ -633,11 +666,16 @@ limitations under the License.
 		<h1>Kicklist | About</h1>
 	</div><!-- /header -->
 	<div data-role="content">
-	<ul data-role="listview">
+		<ul data-role="listview">
 			<li data-role="list-divider">Technical Support</li>
 			<li><a id="contact-us-button" class="ui-btn ui-icon-action ui-btn-inline ui-btn-icon-right" href="https://hsvinnovations.wordpress.com/contact/">Contact HSVInnovations</a></li>
+			<li data-role="list-divider"></li>
+		</ul>
+		<ul id="list-twitter" data-role="listview" style="display:none">
 			<li data-role="list-divider">Connect with Us</li>
-			<li>		<a class="twitter-follow-button" href="https://twitter.com/Kick17List" data-show-count="false" data-size="large">Follow @Kick17List</a></li>
+			<li><span id="button-follow"></span></li>
+			<li><span id="button-tweet"></span></li>
+			<li data-role="list-divider"></li>
 		</ul>
 	</div><!-- /content -->
 	<div data-role="footer" data-position="fixed">
