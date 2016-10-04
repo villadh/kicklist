@@ -14,12 +14,13 @@ limitations under the License.
 <html>
 <head>
   <meta charset=utf-8 />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 	<!-- jQuery -->
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.css">
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script>
 	<title>Kick17 Marathon Checklist</title>
+	<meta name="description" content="Track your marathon sets with this checklist">
 
   <!-- Material Design Theming -->
 	<link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
@@ -55,8 +56,8 @@ limitations under the License.
 	, returningVisitor = false
 	;
 	// database variables
-	var setRef = firebase.database().ref('/Sets').orderByKey()
-	, cardRef = firebase.database().ref('cards').orderByChild('Set')
+	var setRef = firebase.database().ref("Sets")
+	, cardRef = firebase.database().ref("cards")
 	, userRef
 	;
 	// card variables
@@ -79,12 +80,26 @@ limitations under the License.
       } else {
         // [START signout]
         firebase.auth().signOut();
-        // clear data if user has signed out
+        // clear personal data once user has signed out
         $('#e-mail').empty();
 		$('#kick-fan-name').empty();
-		$('#mainboard-checklist').empty();
 		$("social-photo").src = "";
 		$('#display-name').empty();
+		$("#header-main").text("Kicklist");
+		// hide tool bar
+		$("#user-tool-bar").hide();
+
+		// clear all checkboxes
+		$("#mainboard-checklist :checkbox").attr("checked", false);
+		// clear ownership meta
+		$("#mainboard-checklist :checkbox").attr("value", "").checkboxradio("refresh");
+		// disable input until sign-in
+		$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
+		$(".ui-controlgroup-controls").one("click", showBenefits);
+
+		//relinquish focus 
+		$("#social-sign-in").blur();
+
         // [END signout]
       }
       // [START_EXCLUDE]
@@ -101,16 +116,16 @@ limitations under the License.
      */
 
     function initApp() {
+		// Welcome screen
+		//$( ":mobile-pagecontainer" ).pagecontainer("change", "#welcome");
+		//document.getElementById('sign-in-banner').textContent = '';
+		//document.getElementById('sign-in-hint').textContent = '';
+
       // Listening for auth state changes.
       // [START authstatelistener]
       firebase.auth().onAuthStateChanged(function(user) {
         if (user) {
     		// User is signed in.
-   			//$( ":mobile-pagecontainer" ).pagecontainer("change", "#welcome");
-
-			document.getElementById('sign-in-banner').textContent = 'Welcome to Kicklist';
-			document.getElementById('sign-in-hint').textContent = 'Track your marathon sets with this checklist.';
-
         	var displayName = user.displayName;
         	var email = user.email;
         	var emailVerified = user.emailVerified;
@@ -121,25 +136,24 @@ limitations under the License.
 			var kickfanname = null
 	  			, wImg = document.getElementById("social-photo")
 			  	;
-
-			// populate account profile page
+			// modify sign in button text for sign out
+			$("#social-sign-in").text("Sign Out");
+			// build  account profile page
 			if(displayName){
-				$('#display-name').html(displayName);
+				$("#display-name").text(displayName);
+
+				//$("#header-main").text(textBanner);
 			}
 			if(photoURL ){
 				wImg.src = photoURL;
 				wImg.style.padding = "1em";
 			}
 			if(email){
-				$('#e-mail').text(email);
+				$("#e-mail").text(email);
 			} else{
-				$('#e-mail').text('Not provided');
+				$("#e-mail").text("Not provided");
 			}
 
-			// listen for page transistions
-			$( ":mobile-pagecontainer" ).on( "pagecontainerchange", function( event, ui ) {
-				$("#list-button").addClass("ui-btn-active");
-			});
 			// listen for updates to profile
 			$("#e-mail-update").on("click",bUpdateEmailHandleClick);
 			$("#kick-fan-name-update").on("click",bUpdateKickFanNameHandleClick);
@@ -148,11 +162,13 @@ limitations under the License.
 		  } else {
           // User is signed out.
           // [START_EXCLUDE]
-		  document.getElementById('sign-in-banner').textContent = 'Sign In to Get Started';
-		  document.getElementById('sign-in-hint').textContent = 'Sign in with your existing Social Media account below.';
+		  $("#social-sign-in").text("Sign In");
+		  //document.getElementById('sign-in-hint').textContent = 'Sign in with your existing Social Media account below.';
 
           // navigate to sign in page
-          $( ":mobile-pagecontainer" ).pagecontainer("change", "#sign-in");
+         // $( ":mobile-pagecontainer" ).pagecontainer("change", "#sign-in");
+	       
+
 // TODO : clear checklist area
           // [END_EXCLUDE]
         }
@@ -172,19 +188,25 @@ limitations under the License.
 			}
 		);
 		console.log("renderChecklist: requesting set data");
-		setRef.once('value')	// promise returning query
+		setRef.orderByKey().once('value')	// promise returning query
 			.then( function(setSnapshot){
 				console.log("renderChecklist: found: " + setSnapshot.numChildren() + " records at ref " + setRef);
 				// render set data
 				renderSets(setSnapshot,'#mainboard-checklist');			
 				// request card data
-				return cardRef.once('value');	// promise returning query
+				return cardRef.orderByChild('Set').once('value');	// promise returning query
 			}	// end of setRef query fulfillment handler
 			)
 				.then(function(cardSnapshot){
 					console.log("renderChecklist: found: " + cardSnapshot.numChildren() + " records at ref " + cardRef);
 					// render card data
 					renderCards(cardSnapshot);
+					$(".header-button").show();
+					// disable input until sign-in
+					$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
+					// listen for checkbox clicks, display benefits of sign-in
+					$(".ui-controlgroup-controls").one("click", showBenefits);
+
 					return firebase.auth().getRedirectResult(); // promise returning method of Firebase Auth service interface
 				}	// end of cardRef query fulfillment handler
 				)
@@ -192,53 +214,63 @@ limitations under the License.
 						// set user identity
 						if(result.user)
 							uid = result.user.uid;
-						userRef = firebase.database().ref('users/' + uid);
+						if(uid)
+							userRef = firebase.database().ref('users/' + uid);
 						// request user data
 						return userRef.once('value') 	// promise returning query
 					}	// end of getRedirectResult fulfillment handler
 					)
 						.then(function(userSnapshot){
 							// determine if user is a returning visitor or new
-							returningVisitor = userSnapshot.exists();
-							var nextPage = "#";
-							if(returningVisitor){
-								console.log("renderChecklist: Welcome back!");
+							if(userSnapshot.exists()){
+								// render user card ownsership 
+								renderOwnership(userSnapshot.child('cards'));
+
 								kickfanname = userSnapshot.child('kick/fanname').val();
 								if(kickfanname){
-									console.log("onAuthStateChanged: Found custom profile");
+									console.log("renderChecklist: Found kick profile");
+									var textBanner = kickfanname + "'s Kicklist";
+									$("#header-main").text(textBanner);
 									$('#kick-fan-name').text(kickfanname);
 								} else {
 									$('#kick-fan-name').text('Not provided');
 								}
-								// render user card ownsership 
-								renderOwnership(userSnapshot.child('cards'));
-								// TODO: filter by user preferences
-								// navigate to main page, render jQuery widgets
-								nextPage = "#list";
-							} else {	// show all marathon cards in database
+								console.log("renderChecklist: Welcome back!");
+// TODO: apply user preferences
+							} else {
 								console.log("renderChecklist: Hello new visitor!");
-//TODO: new visitor sequence
-								// navigate to profile page
-								nextPage = "#profile";
+//TODO: first launch experience
 							}	// end of returningVisitor if
-							//listen for action button clicks
-							$('#sign-out-button').click(toggleSignIn);
-							$('#save-button').click(bSubmitHandleClick);
-							$('#clear-button').click(bClearAllHandleClick);
-							// navigate to next page
-							$( ":mobile-pagecontainer" ).pagecontainer("change", nextPage);
-							// listen for checkbox clicks
-							$(":checkbox").click(cbHandleClick);
+								// enable checkboxes
+								$("#mainboard-checklist :checkbox").checkboxradio( "enable" );
+								$(".ui-controlgroup-controls").off("click", showBenefits);
+
+								// listen for checkbox clicks
+								$(":checkbox").on("click", cbHandleClick);
+
+								//listen for action button clicks
+								$("#save-button").on("click", bSubmitHandleClick);
+								$("#clear-button").on("click", bClearAllHandleClick);
+							
+								// listen for page transistions
+								$( ":mobile-pagecontainer" ).on( "pagecontainerchange", function( event, ui ) {
+									$("#list-button").addClass("ui-btn-active");
+								});
+
+								// display tool bar
+								$("#user-tool-bar").show();
+
 						}// end of userRef query fulfillment handler
-						).catch(function(err){
+						)
+						.catch(function(err){
 							$.mobile.loading( "hide");
-							if(!(uid)){
-								console.log("renderChecklist: Too early, retry when someone is signed in");
-							}else if(err.message === "user is not defined"){
+							if((!uid) || (err.message === "Cannot read property 'exists' of undefined")){
+								console.log("renderChecklist: No user information, listen for sign-in");
+							} else if(err.message === "user is not defined"){
 								console.log("renderChecklist: No user object, sign in error?");
-							}else if(err.message === "Cannot read property 'provider' of undefined"){
+							} else if(err.message === "Cannot read property 'provider' of undefined"){
 								console.log("renderChecklist: No redirect results.");
-							} else if(err.code === 'auth/account-exists-with-different-credential') {
+							} else if(err.code === 'auth/account-exists-with-different-credential'){
 						          alert('You have already signed up with a different auth provider for that email.');
 						          // If you are using multiple auth providers on your app you should handle linking
 						          // the user's accounts here.
@@ -250,9 +282,8 @@ limitations under the License.
 	}	// end of function renderChecklist
 
 	function renderSets(fbdbSnapshot, pageID){
-		console.log("renderSets: list marathon sets");
+		console.log("renderSets: building set tabs");
 // TODO: filter on user preferences
-//		setRef.once('value').then(function(setSnapshot){
 			var compID = []
 			;
 			fbdbSnapshot.forEach(function(setChildSnapshot){
@@ -275,7 +306,6 @@ limitations under the License.
 				// set up fieldset for cards
 				$(tabSec).addClass('ui-field-contain');
 				$(fsCards).attr('data-role','controlgroup');
-				//$(fsCards).attr('id', fsID);
 				fsCards.id = setChildSnapshot.key + "-fs";
 				$(hCards).text(setChildSnapshot.val().Name);
 				$(fsCards).append(hCards);
@@ -324,12 +354,11 @@ limitations under the License.
 			$(nbTop).append(ulTop);			
 			$('#mainboard-checklist').attr('data-role','tabs');
 			$('#mainboard-checklist').prepend(nbTop);
-//		});	// end of once value query
 		return fbdbSnapshot.numChildren();
 	}	// end of function renderSets
 
 	function renderCards(cardsetSnapshot){
-		console.log('renderCards: displaying checklist');
+		console.log('renderCards: building checklist');
 		uCards = cardsetSnapshot;
 		uCards.forEach(function(cardChildSnapshot){
 			var checkArea = document.createElement('input')
@@ -340,7 +369,6 @@ limitations under the License.
 			checkArea.type = "checkbox";
 			checkArea.id = cardChildSnapshot.key;
 			checkArea.name = cardChildSnapshot.key;
-			//checkArea.setAttribute("class", "custom");
 			cardArea.setAttribute('for', cardChildSnapshot.key);
 			cardArea.textContent+= cardChildSnapshot.val().Player;
 			// check for card variant parallel
@@ -350,6 +378,11 @@ limitations under the License.
 			$(cardsetArea).append(checkArea);
 			$(cardsetArea).append(cardArea);
 		});	// end of cards snapshot foreach loop
+		// enhance jQuery widgets
+		$("#list").enhanceWithin();
+		// display checklist, hide welcome
+		$("#welcome").hide();
+		$("#mainboard-checklist").show();
 		return cardsetSnapshot.numChildren()
 	}	// end of function renderCards
 
@@ -358,22 +391,20 @@ limitations under the License.
 		var ownedCards = 0;
 		fbdbSnapshot.forEach(function(childSnapshot){
 			if(childSnapshot.child('status').val() === 'GOT'){
-				document.getElementById(childSnapshot.key).checked = true;
-				document.getElementById(childSnapshot.key).value = 'GOT';
+				var ownedCard = document.getElementById(childSnapshot.key);
+				ownedCard.checked = true;
+				ownedCard.value = "GOT";
 				ownedCards++;
 			}
 		});	// end of foreach
 		console.log("renderOwnership: " + uid + " owns " + ownedCards + " marathon cards");
-		$( ":mobile-pagecontainer" ).pagecontainer("change", "#list");
-		$.mobile.loading( "hide");		
+		// enhance jQuery widgets
+		$("#list").enhanceWithin();
+		$.mobile.loading( "hide");
 		return ownedCards;
 	}	// end of function renderOwnership
 
 	// DOM event handlers
-	function signoutHandleClick(signoutEvent){
-		toggleSignIn();
-	}	// end of signoutHandleClick function
-
 	function bUpdateKickFanNameHandleClick(updateKickFanNameEvent){
 		var tKickFanName = document.getElementsByName(updateKickFanNameEvent.currentTarget.name)[0]
 		, tUpdate = tKickFanName.value
@@ -473,20 +504,20 @@ limitations under the License.
 
 	function bClearAllHandleClick(bClearAllEvent){
 		console.log("bClearAllHandleClick: backing out all changes");
-		while(fbQueue.length){
-			// var cardToClear = document.getElementById(fbQueue.pop());
-			var cardToClearId = "#" + fbQueue.pop();
-			console.log("bClearAllHandleClick: re-setting card no " + $(cardToClearId).attr('id'));
-			// clear all checkboxes in queue
-			$(cardToClearId).attr('checked', false);
-			// add back cards owned
-			if($(cardToClearId).attr('value') === 'GOT')
-				$(cardToClearId).attr('checked', true);
-			$(cardToClearId).checkboxradio("refresh");
-		}	// end of queue length while
+		// empty queue
+		fbQueue = [];
+		
+		// clear all checkboxes
+		$("#mainboard-checklist :checkbox").prop("checked", false).checkboxradio("refresh");
+		$("#mainboard-checklist :checkbox[value = 'GOT']").prop("checked", true).checkboxradio("refresh");
+
 		$(this).removeClass("ui-btn-active");
 		$("#list-button").addClass("ui-btn-active");
 	}	// end of bClearAllHandleClick function
+
+	function showBenefits(disabledCbEvent){
+		$(":mobile-pagecontainer").pagecontainer("change", "#benefits", {transition : "pop"});
+	}	// end of function showBenefits
 
 	function nbHandleClick(nbEvent){
 		// TODO add event handling 
@@ -508,7 +539,6 @@ limitations under the License.
 			, cardStatus = cbEvent.currentTarget.value 
 			, cardQueued = fbQueue.indexOf(cardNo);
 			;
-
 		if(cardQueued < 0){
 			// add card to queue
 			console.log("cbHandleClick: adding " + cardNo + " to queue ");
@@ -522,67 +552,87 @@ limitations under the License.
 	}	// end of cbHandleClick function
 
 	$( document ).on('ready', function(event){// Listening for page init to complete
+		$("#tagline").text($("meta[name='description']").prop("content"));
 		initApp();
 		renderChecklist();
 	}
 	);
   </script>
+  <script language="javascript" type="text/javascript">window.twttr = (function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0],
+    t = window.twttr || {};
+  if (d.getElementById(id)) return t;
+  js = d.createElement(s);
+  js.id = id;
+  js.src = "https://platform.twitter.com/widgets.js";
+  fjs.parentNode.insertBefore(js, fjs);
+ 
+  t._e = [];
+  t.ready = function(f) {
+    t._e.push(f);
+  };	
+  return t;
+}(document, "script", "twitter-wjs"));	// end of widget-js async load
+  twttr.ready(
+  function (twttr) {
+  	
+	twttr.widgets.createFollowButton(
+	"Kick17List",
+		document.getElementById("button-follow"),
+		{
+			size: "large",
+			count: "none"
+		}
+	)	// promise returning createFollowButton
+	.then( twttr.widgets.createShareButton(
+		location.origin + location.pathname,
+		document.getElementById("button-tweet"),
+		{
+			text: $("meta[name='description']").prop("content"),
+			via: "Kick17List",
+			size: "large"
+		}
+	)	// promise returning createShareButton
+	)
+	.then( function(){
+		$("#list-twitter").show();
+	},	// end of createShareButton resolution
+	function(twttrError){
+		console.log(twttrError.message);
+	}	// end of createShareButton rejection
+	);	// end of twitter promise chain	
+  }
+);// end of twttr.ready
+
+</script>
 </head>
 <body>
-<!-- Start of first page: #sign-in -->
-<div data-role="page" id="sign-in">
-  <!-- Header section containing title -->
+<div data-role="page" id="list">
 	<div data-role="header" data-position="fixed">
-		<h1>Kicklist</h1>
-	</div><!-- /header -->
-	<div data-role="content" class="ui-content">
-		<!-- -->
-		<div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
-			<div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
-				<h2 id="sign-in-banner" class="mdl-card__title-text"></h2>
-	    </div>
-			<div class="mdl-card__supporting-text mdl-color-text--grey-600" id="action-button-area">
-				<p id="sign-in-hint"></p>
-				<!-- Button that handles twitter sign-in/sign-out -->
-				<button disabled class="mdl-button mdl-js-button mdl-button--raised" id="social-sign-in">Sign in with Twitter</button>
-			</div>
-		</div>
-	</div><!-- /main -->
-	<div id="footer" data-role="footer" data-position="fixed" >
-	</div><!-- /footer -->
-</div><!-- /page one -->
-
-<div data-role="page" id="welcome">
-
-	<div data-role="header" data-position="fixed">
-		<h1>Kicklist</h1>
+		<a id="social-sign-in" href="#" class="ui-btn ui-mini ui-btn-left  ui-btn-inline ui-corner-all ui-btn-icon-left header-button" style="display:none;">Sign In</a>
+		<h1 id="header-main">Kicklist</h1><a href="#about" class="ui-btn ui-mini ui-btn-right ui-corner-all ui-btn-icon-right ui-icon-info header-button" style="display:none;"></a>
 	</div><!-- /header -->
 
 	<div role="main" class="ui-content">
-		<p>Welcome <span id="welcome-sign"></span></p>
-		
+		<div id="welcome" class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
+	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
+	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
+	        </div>
+	        <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+				<p id="tagline"></p>
+			</div>
+		</div>	
+		<div id="mainboard-checklist" style="display:none"></div> <!-- end of Mainboard Tabs Area -->
 	</div><!-- /content -->
 
-	<div data-role="footer">
-	</div><!-- /footer -->
-</div><!-- /page -->
-
-<!-- Start of second page: #list -->
-<div data-role="page" id="list">
-	<div data-role="header" data-position="fixed">
-		<h1>Kicklist</h1>
-	</div><!-- /header -->
-	<div data-role="content" class="ui-content">
-		<div id="mainboard-checklist"></div> <!-- end of Mainboard Tabs Area -->
-	</div><!-- /main -->
-	<div data-role="footer" data-position="fixed" >
+	<div id="user-tool-bar" data-role="footer" data-position="fixed" style="display:none;">
     	<div data-role="navbar">
 			<ul>
 				<li><a id="save-button" href="#" class="ui-btn" data-icon="check">Save</a></li>
 				<li><a id="clear-button" href="#" class="ui-btn" data-icon="delete">Clear</a></li>
-				<li><a id="list-button" href="#list" class="ui-btn" data-icon="grid">List</a></li>
+				<li><a id="list-button" href="#list" class="ui-btn ui-btn-active" data-icon="grid">List</a></li>
 				<li><a id="profile-button" href="#profile" class="ui-btn" data-icon="user">Profile</a></li>
-				<li><a id="sign-out-button" href="#" class="ui-btn" data-icon="arrow-r">Sign Out</a></li>
+				<!-- <li><a id="sign-out-button" href="#" class="ui-btn" data-icon="arrow-r">Sign Out</a></li> -->
 		    </ul>
 		</div><!-- /navbar -->
 	</div><!-- /footer -->
@@ -610,8 +660,29 @@ limitations under the License.
 	<div data-role="footer" data-position="fixed">
 	</div><!-- /footer -->
 </div><!-- /page profile -->
+<!-- Start of fourth page: #about -->
+<div data-role="page" id="about">
+	<div data-role="header" data-add-back-btn="true">
+		<h1>Kicklist | About</h1>
+	</div><!-- /header -->
+	<div data-role="content">
+		<ul data-role="listview">
+			<li data-role="list-divider">Technical Support</li>
+			<li><a id="contact-us-button" class="ui-btn ui-icon-action ui-btn-inline ui-btn-icon-right" href="https://hsvinnovations.wordpress.com/contact/">Contact HSVInnovations</a></li>
+			<li data-role="list-divider"></li>
+		</ul>
+		<ul id="list-twitter" data-role="listview" style="display:none">
+			<li data-role="list-divider">Connect with Us</li>
+			<li><span id="button-follow"></span></li>
+			<li><span id="button-tweet"></span></li>
+			<li data-role="list-divider"></li>
+		</ul>
+	</div><!-- /content -->
+	<div data-role="footer" data-position="fixed">
+	</div><!-- /footer -->
+</div><!-- /page about -->
 
-<!-- Start of fourth page: #update-e-mail -->
+<!-- Start of pop up page: #update-e-mail -->
 <div data-role="page" id="update-e-mail">
 	<div data-role="header">
 		<h1>Update Profile</h1>
@@ -620,33 +691,33 @@ limitations under the License.
 		<h2>Set E-mail</h2>
 		<div class="ui-field-contain">
 			<label for="e-mail-tf">Enter new E-mail:</label>
-        	<input type="e-mail" name="e-mail-tf" id="e-mail-tf" value="">
-			<input type="button" name="e-mail-tf" id="e-mail-update" value="Update" class="update-button">
+        	<input id="e-mail-tf" type="e-mail" name="e-mail-tf" value="">
+			<input id="e-mail-update" type="button" name="e-mail-tf" value="Update" class="update-button">
 		</div>
 	</div><!-- /content -->
 	<div data-role="footer">
 		<a href="#profile" data-rel="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of fifth page: #update-kick-fan-name -->
+<!-- Start of pop up page: #update-kick-fan-name -->
 <div data-role="page" id="update-kick-fan-name">
-	<div data-role="header">
+	<div data-role="header" >
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
 	<div data-role="content" >
 		<h2>Set Kick Name</h2>
 		<div class="ui-field-contain">
 			<label for="kick-fan-name-tf">Enter your Kick fan name:</label>
-   			<input type="text" name="kick-fan-name-tf" id="kick-fan-name-tf" value="">
-   			<input type="button" name="kick-fan-name-tf" id="kick-fan-name-update" value="Update" class="update-button">
+   			<input id="kick-fan-name-tf" type="text" name="kick-fan-name-tf" value="">
+   			<input id="kick-fan-name-update" type="button" name="kick-fan-name-tf" value="Update" class="update-button">
 		</div>
 	</div><!-- /content -->
 	<div data-role="footer">
 		<a href="#profile" data-rel="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of sixth page: #update-password -->
-<div data-role="page" id="update-password" >
+<!-- Start of pop up page: #update-password -->
+<div data-role="page" id="update-password">
 	<div data-role="header">
 		<h1>Update Profile</h1>
 	</div><!-- /header -->
@@ -661,7 +732,7 @@ limitations under the License.
 		<a href="#profile" data-rel="back" class="ui-btn" data-inline="true" data-icon="back">Back to Profile page</a>
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of database write success page: #fbdb-success -->
+<!-- Start of pop up page: database write success #fbdb-success -->
 <div data-role="page" id="fbdb-success" data-dialog="true">
 	<div data-role="header" data-add-back-btn="true">
 		<h1>Update Successful</h1>
@@ -672,5 +743,22 @@ limitations under the License.
 	<div data-role="footer">
 	</div><!-- /footer -->
 </div><!-- /page popup -->
+<!-- Start of popup page: benefits -->
+<div data-role="page" id="benefits" data-dialog="true">
+  <!-- Header section containing title -->
+	<div data-role="header" data-position="fixed" data-add-back-btn="true">
+		<h1>Join Kicklist</h1>
+	</div><!-- /header -->
+	<div data-role="content" class="ui-content">
+		<ol>
+			<li>Sign in with your twitter account</li>
+			<li>Check off cards you "GOT" on your Kick account</li>
+			<li>Leave cards you "NEED" unchecked</li>
+			<li>Save your list and sign back in to update your Kicklist!</li>
+		</ol>
+	</div><!-- /main -->
+	<div data-role="footer" data-position="fixed" >
+	</div><!-- /footer -->
+</div><!-- /page #sign-in -->
 </body>
 </html>
