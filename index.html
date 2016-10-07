@@ -93,7 +93,7 @@ limitations under the License.
 		$("#mainboard-checklist :checkbox").attr("value", "").checkboxradio("refresh");
 		// disable input until sign-in
 		$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
-		$(".ui-controlgroup-controls").one("click", showBenefits);
+		$("fieldset").one("click", showBenefits);
 
 		//relinquish focus 
 		$("#social-sign-in").blur();
@@ -190,7 +190,7 @@ limitations under the License.
 					// disable input until sign-in
 					$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
 					// listen for checkbox clicks, display benefits of sign-in
-					$(".ui-controlgroup-controls").one("click", showBenefits);
+					$("fieldset").one("click", showBenefits);
 
 					return firebase.auth().getRedirectResult(); // promise returning method of Firebase Auth service interface
 				}	// end of cardRef query fulfillment handler
@@ -228,7 +228,7 @@ limitations under the License.
 							}	// end of returningVisitor if
 								// enable checkboxes
 								$("#mainboard-checklist :checkbox").checkboxradio( "enable" );
-								$(".ui-controlgroup-controls").off("click", showBenefits);
+								$("fieldset").off("click", showBenefits);
 
 								// listen for checkbox clicks
 								$(":checkbox").on("click", cbHandleClick);
@@ -365,6 +365,8 @@ limitations under the License.
 		});	// end of cards snapshot foreach loop
 		// enhance jQuery widgets
 		$("#list").enhanceWithin();
+		// set active tab's button
+		var activeTab = $("li.ui-tabs-active a").addClass("ui-btn-active");
 		// display checklist, hide welcome
 		$("#welcome").hide();
 		$("#mainboard-checklist").show();
@@ -595,10 +597,26 @@ limitations under the License.
 <body>
 <div data-role="page" id="list">
 	<div data-role="header" data-position="fixed">
-		<a id="social-sign-in" href="#" class="ui-btn ui-mini ui-btn-left  ui-btn-inline ui-corner-all ui-btn-icon-left header-button" style="display:none;">Sign In</a>
-		<h1 id="header-main">Kicklist</h1><a href="#about" class="ui-btn ui-mini ui-btn-right ui-corner-all ui-btn-icon-right ui-icon-info header-button" style="display:none;"></a>
+		<h1 id="header-main">Kicklist</h1>
+		<div class="ui-btn-right" data-role="controlgroup" data-type="horizontal" >
+			<a id="social-sign-in" class="ui-btn ui-corner-all header-button" style="display:none;">Sign In</a>
+			<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info header-button" style="display:none;"></a>
+		</div>
 	</div><!-- /header -->
 	<div role="main" class="ui-content">
+<!-- Adsense: firebase-hosted 
+		<div style="margin:auto; max-width:80%;">
+		<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+		<ins class="adsbygoogle"
+		     style="display:block"
+		     data-ad-client="ca-pub-7860071344645225"
+		     data-ad-slot="9530934891"
+		     data-ad-format="auto"></ins>
+		<script>
+			(adsbygoogle = window.adsbygoogle || []).push({});
+		</script>
+		</div>
+-->
 		<div id="welcome" class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
 	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
 	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
@@ -607,16 +625,6 @@ limitations under the License.
 				<p id="tagline"></p>
 			</div>
 		</div>
-		<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<!-- firebase-hosted -->
-<ins class="adsbygoogle"
-     style="display:block"
-     data-ad-client="ca-pub-7860071344645225"
-     data-ad-slot="9530934891"
-     data-ad-format="auto"></ins>
-<script>
-(adsbygoogle = window.adsbygoogle || []).push({});
-</script>
 		<div id="mainboard-checklist" style="display:none"></div> <!-- end of Mainboard Tabs Area -->
 	</div><!-- /content -->
 
