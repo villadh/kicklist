@@ -84,8 +84,6 @@ limitations under the License.
 		$("social-photo").attr("src" , "");
 		$(".pii").empty();
 		$("#header-main").text("Kicklist");
-		// hide tool bar
-		$(".auth-user").hide();
 
 		// clear all checkboxes
 		$("#mainboard-checklist :checkbox").attr("checked", false);
@@ -160,8 +158,8 @@ limitations under the License.
 			$("#social-sign-in").removeClass("ui-btn-icon-right ui-icon-power");
 // TODO add font awesome social icon(s) 
 			$("#social-sign-in").text("Sign In");
-	  		// hide profile button
-//			$("#profile-button").hide();
+		// hide tool bar
+		$(".auth-user").hide();
 
 // TODO : clear checklist area
           // [END_EXCLUDE]
@@ -655,7 +653,7 @@ img {
 		<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info" data-transition="slidefade">About</a>
 	</div><!-- /panel -->
 	<div role="main" class="ui-content">
-<!-- Adsense: firebase-hosted
+<!-- Adsense: firebase-hosted -->
 		<div id="ad-unit-1">
 		<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 		<ins class="adsbygoogle"
@@ -667,7 +665,6 @@ img {
 			(adsbygoogle = window.adsbygoogle || []).push({});
 		</script>
 		</div>	// end of ad-unit-1
- -->
 		<div id="welcome" class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
 	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
 	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
