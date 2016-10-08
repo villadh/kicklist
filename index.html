@@ -85,7 +85,7 @@ limitations under the License.
 		$(".pii").empty();
 		$("#header-main").text("Kicklist");
 		// hide tool bar
-		$("#user-tool-bar").hide();
+		$(".auth-user").hide();
 
 		// clear all checkboxes
 		$("#mainboard-checklist :checkbox").attr("checked", false);
@@ -95,6 +95,8 @@ limitations under the License.
 		$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
 		// replace tooltip
 		$("fieldset").one("click", showBenefits);
+		// close panel
+		$("#menu-panel").panel("close");
 
 		//relinquish focus 
 		$("#social-sign-in").blur();
@@ -122,9 +124,9 @@ limitations under the License.
     		// User is signed in.
         	var displayName = user.displayName;
         	var email = user.email;
-        	var emailVerified = user.emailVerified;
+//        	var emailVerified = user.emailVerified;
         	var photoURL = user.photoURL;
-        	var isAnonymous = user.isAnonymous;
+//        	var isAnonymous = user.isAnonymous;
 			var providerData = user.providerData;
 			uid = user.uid;
 			var kickfanname = null
@@ -135,15 +137,12 @@ limitations under the License.
 			$("#social-sign-in").text("Sign Out");
 			$("#social-sign-in").addClass("ui-btn-icon-right ui-icon-power");
 			// link to profile
-			$("#profile-button").show();
+//			$("#profile-button").show();
 			// build  account profile page
-			if(displayName){
+			if(displayName)
 				$("#display-name").text(displayName);
-			}
-			if(photoURL ){
+			if(photoURL)
 				wImg.src = photoURL;
-				wImg.style.padding = "1em";
-			}
 			if(email){
 				$("#e-mail").text(email);
 			} else{
@@ -162,7 +161,7 @@ limitations under the License.
 // TODO add font awesome social icon(s) 
 			$("#social-sign-in").text("Sign In");
 	  		// hide profile button
-			$("#profile-button").hide();
+//			$("#profile-button").hide();
 
 // TODO : clear checklist area
           // [END_EXCLUDE]
@@ -172,7 +171,18 @@ limitations under the License.
         // [END_EXCLUDE]
       });
       // [END authstatelistener]
+      // listen for user interactions
       document.getElementById('social-sign-in').addEventListener('click', toggleSignIn, false);
+      $( "#menu-panel" ).on({
+       "panelopen": function(event, ui){
+		$("#list-header > a").hide();
+      },
+
+      "panelclose": function(event, ui){
+		$("#sign-up-benefits").hide();
+		$("#list-header > a").show();
+      }
+      });
     }
 
 	function renderChecklist(){
@@ -219,16 +229,16 @@ limitations under the License.
 							// determine if user is a returning visitor or new
 							if(userSnapshot.exists()){
 								// render user card ownsership 
-								renderOwnership(userSnapshot.child('cards'));
+								renderOwnership(userSnapshot.child("cards"));
 
-								kickfanname = userSnapshot.child('kick/fanname').val();
+								kickfanname = userSnapshot.child("kick/fanname").val();
 								if(kickfanname){
 									console.log("renderChecklist: Found kick profile");
 									var textBanner = kickfanname + "'s Kicklist";
 									$("#header-main").text(textBanner);
 									$('#kick-fan-name').text(kickfanname);
 								} else {
-									$('#kick-fan-name').text('Not provided');
+									$("#kick-fan-name").text("Not provided");
 								}
 								console.log("renderChecklist: Welcome back!");
 // TODO: apply user preferences
@@ -253,7 +263,7 @@ limitations under the License.
 								});
 
 								// display tool bar
-								$("#user-tool-bar").show();
+								$(".auth-user").show();
 
 						}// end of userRef query fulfillment handler
 						)
@@ -401,6 +411,11 @@ limitations under the License.
 		return ownedCards;
 	}	// end of function renderOwnership
 
+	function showBenefits(disabledCbEvent){
+		$("#menu-panel").panel("open");
+		$("#sign-up-benefits").show();
+	}	// end of function showBenefits
+
 	// DOM event handlers
 	function bUpdateKickFanNameHandleClick(updateKickFanNameEvent){
 		var tKickFanName = document.getElementsByName(updateKickFanNameEvent.currentTarget.name)[0]
@@ -512,14 +527,6 @@ limitations under the License.
 		$("#list-button").addClass("ui-btn-active");
 	}	// end of bClearAllHandleClick function
 
-	function showBenefits(disabledCbEvent){
-		$(":mobile-pagecontainer").pagecontainer("change", "#benefits", {transition : "pop"});
-	}	// end of function showBenefits
-
-	function nbHandleClick(nbEvent){
-		// TODO add event handling 
-	}	// end of nbHandleClick function
-
 	function nbCompHandleClick(nbCompEvent){
 		console.log("nbCompHandleClick: ");
 	}	// end of nbCompHandleClick funciton 
@@ -603,24 +610,53 @@ limitations under the License.
 
 </script>
 <script src="analyticstracking.js" type="text/javascript"></script>
+	<style type="text/css">
+#list-header > a {
+				padding-left: 40px;
+}
+.ui-panel-inner {
+				padding-top: 0px;
+}
+img {
+				padding: 1em;
+}
+#ad-unit-1{
+				margin: auto;
+				min-width: 80px;
+}
+#mainboard-checklist,
+#sign-up-benefits,
+#list-twitter {
+				display: none;
+}
+.notice {
+				text-align: center;
+}
+</style>
 </head>
 <body>
 <div data-role="page" id="list">
-	<div data-role="header" data-position="fixed">
+	<div id="list-header" data-role="header" data-position="fixed">
+		<a href="#menu-panel" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-bars ui-btn-icon-notext"></a>
 		<h1 id="header-main">Kicklist</h1>
-<a href="#menu-panel" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-bars"></a>
 	</div><!-- /header -->
 	<!-- panel -->
-<div id="menu-panel" data-role="panel" data-position="left">
-	<a id="social-sign-in" class="ui-btn ui-corner-all">Sign In</a>
-	<a id="profile-button" href="#profile" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-user" data-transition="slidefade">Profile</a>
-	<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info" data-transition="slidefade">About</a>
-
-</div><!-- /panel -->
-
+	<div id="menu-panel" data-role="panel" data-position="left">
+		<a class="ui-btn ui-corner-all ui-btn-icon-left ui-icon-delete ui-btn-icon-notext" href="#list-header" data-rel="close">Close Panel</a>
+		<a id="social-sign-in" class="ui-btn ui-corner-all">Sign In</a>
+		<a id="profile-button" class="auth-user ui-btn ui-corner-all ui-btn-icon-right ui-icon-user" href="#profile" data-transition="slidefade">Profile</a>
+		<ol id="sign-up-benefits">
+			<li>Sign in with your twitter account</li>
+			<li>Check off cards you "GOT" on your Kick account</li>
+			<li>Leave cards you "NEED" unchecked</li>
+			<li>Save your list</li>
+			<li>Return whenever you need to update your Kicklist!</li>
+		</ol>
+		<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info" data-transition="slidefade">About</a>
+	</div><!-- /panel -->
 	<div role="main" class="ui-content">
-<!-- Adsense: firebase-hosted -->
-		<div style="margin:auto; max-width:80%;">
+<!-- Adsense: firebase-hosted
+		<div id="ad-unit-1">
 		<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 		<ins class="adsbygoogle"
 		     style="display:block"
@@ -630,8 +666,8 @@ limitations under the License.
 		<script>
 			(adsbygoogle = window.adsbygoogle || []).push({});
 		</script>
-		</div>
-
+		</div>	// end of ad-unit-1
+ -->
 		<div id="welcome" class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
 	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
 	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
@@ -640,10 +676,10 @@ limitations under the License.
 				<p id="tagline"></p>
 			</div>
 		</div>
-		<div id="mainboard-checklist" style="display:none"></div> <!-- end of Mainboard Tabs Area -->
+		<div id="mainboard-checklist"></div> <!-- end of Mainboard Tabs Area -->
+		<div class="notice"><p>© 2016 HSV Innovations, LLC </p></div>
 	</div><!-- /content -->
-
-	<div id="user-tool-bar" data-role="footer" data-position="fixed" style="display:none;">
+	<div id="user-tool-bar" class="auth-user" data-role="footer" data-position="fixed">
     	<div data-role="navbar">
 			<ul>
 				<li><a id="save-button" href="#" class="ui-btn" data-icon="check">Save</a></li>
@@ -652,12 +688,12 @@ limitations under the License.
 		    </ul>
 		</div><!-- /navbar -->
 	</div><!-- /footer -->
-</div><!-- /page two -->
+</div><!-- /page list -->
 
-<!-- Start of third page: #profile -->
+<!-- Start of page: #profile -->
 <div data-role="page" id="profile">
 	<div data-role="header" data-add-back-btn="true">
-		<h1>Kicklist Profile</h1>
+		<h1>Kicklist | Profile</h1>
 	</div><!-- /header -->
 	<div data-role="content" class="user-details-container">
 		<!-- Listwview widget displaying user details -->
@@ -674,9 +710,10 @@ limitations under the License.
 		</ul>
 	</div><!-- /content -->
 	<div data-role="footer" data-position="fixed">
+	<div class="notice"><p>© 2016 HSV Innovations, LLC </p></div>
 	</div><!-- /footer -->
 </div><!-- /page profile -->
-<!-- Start of fourth page: #about -->
+<!-- Start of page: #about -->
 <div data-role="page" id="about">
 	<div data-role="header" data-add-back-btn="true">
 		<h1>Kicklist | About</h1>
@@ -687,7 +724,7 @@ limitations under the License.
 			<li><a id="contact-us-button" class="ui-btn ui-icon-action ui-btn-inline ui-btn-icon-right" href="https://hsvinnovations.wordpress.com/contact/">Contact HSVInnovations</a></li>
 			<li data-role="list-divider"></li>
 		</ul>
-		<ul id="list-twitter" data-role="listview" style="display:none">
+		<ul id="list-twitter" data-role="listview">
 			<li data-role="list-divider">Connect with Us</li>
 			<li><span id="button-follow"></span></li>
 			<li><span id="button-tweet"></span></li>
@@ -695,9 +732,10 @@ limitations under the License.
 		</ul>
 	</div><!-- /content -->
 	<div data-role="footer" data-position="fixed">
+		<p>© 2016 HSV Innovations, LLC </p>
+		<p>HSV Innovations and this Kicklist website are not affiliated with, endorsed, sponsored, or specifically approved by The Topps Company, Inc.  The Topps Company, Inc. has sole ownership of the names, logo, artwork, marks, photographs, sounds, audio, video and/or any proprietary material used in connection with the game Topps® KICK® 2017- Football Card Trader.</p>
 	</div><!-- /footer -->
 </div><!-- /page about -->
-
 <!-- Start of pop up page: #update-e-mail -->
 <div data-role="page" id="update-e-mail">
 	<div data-role="header">
@@ -759,22 +797,5 @@ limitations under the License.
 	<div data-role="footer">
 	</div><!-- /footer -->
 </div><!-- /page popup -->
-<!-- Start of popup page: benefits -->
-<div data-role="page" id="benefits" data-dialog="true">
-  <!-- Header section containing title -->
-	<div data-role="header" data-position="fixed" data-add-back-btn="true">
-		<h1>Join Kicklist</h1>
-	</div><!-- /header -->
-	<div data-role="content" class="ui-content">
-		<ol>
-			<li>Sign in with your twitter account</li>
-			<li>Check off cards you "GOT" on your Kick account</li>
-			<li>Leave cards you "NEED" unchecked</li>
-			<li>Save your list and sign back in to update your Kicklist!</li>
-		</ol>
-	</div><!-- /main -->
-	<div data-role="footer" data-position="fixed" >
-	</div><!-- /footer -->
-</div><!-- /page #sign-in -->
 </body>
 </html>
