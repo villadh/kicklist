@@ -81,7 +81,7 @@ limitations under the License.
         // [START signout]
         firebase.auth().signOut();
         // clear personal data once user has signed out
-		$("social-photo").src = "";
+		$("social-photo").attr("src" , "");
 		$(".pii").empty();
 		$("#header-main").text("Kicklist");
 		// hide tool bar
@@ -93,6 +93,7 @@ limitations under the License.
 		$("#mainboard-checklist :checkbox").attr("value", "").checkboxradio("refresh");
 		// disable input until sign-in
 		$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
+		// replace tooltip
 		$("fieldset").one("click", showBenefits);
 
 		//relinquish focus 
@@ -129,8 +130,12 @@ limitations under the License.
 			var kickfanname = null
 	  			, wImg = document.getElementById("social-photo")
 			  	;
-			// modify sign in button text for sign out
+			// update menu
+			//	modify sign in button text for sign out
 			$("#social-sign-in").text("Sign Out");
+			$("#social-sign-in").addClass("ui-btn-icon-right ui-icon-power");
+			// link to profile
+			$("#profile-button").show();
 			// build  account profile page
 			if(displayName){
 				$("#display-name").text(displayName);
@@ -153,7 +158,12 @@ limitations under the License.
 		  } else {
           // User is signed out.
           // [START_EXCLUDE]
-		  $("#social-sign-in").text("Sign In");
+			$("#social-sign-in").removeClass("ui-btn-icon-right ui-icon-power");
+// TODO add font awesome social icon(s) 
+			$("#social-sign-in").text("Sign In");
+	  		// hide profile button
+			$("#profile-button").hide();
+
 // TODO : clear checklist area
           // [END_EXCLUDE]
         }
@@ -598,13 +608,18 @@ limitations under the License.
 <div data-role="page" id="list">
 	<div data-role="header" data-position="fixed">
 		<h1 id="header-main">Kicklist</h1>
-		<div class="ui-btn-right" data-role="controlgroup" data-type="horizontal" >
-			<a id="social-sign-in" class="ui-btn ui-corner-all header-button" style="display:none;">Sign In</a>
-			<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info header-button" style="display:none;"></a>
-		</div>
+<a href="#menu-panel" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-bars"></a>
 	</div><!-- /header -->
+	<!-- panel -->
+<div id="menu-panel" data-role="panel" data-position="left">
+	<a id="social-sign-in" class="ui-btn ui-corner-all">Sign In</a>
+	<a id="profile-button" href="#profile" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-user" data-transition="slidefade">Profile</a>
+	<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info" data-transition="slidefade">About</a>
+
+</div><!-- /panel -->
+
 	<div role="main" class="ui-content">
-<!-- Adsense: firebase-hosted 
+<!-- Adsense: firebase-hosted -->
 		<div style="margin:auto; max-width:80%;">
 		<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 		<ins class="adsbygoogle"
@@ -616,7 +631,7 @@ limitations under the License.
 			(adsbygoogle = window.adsbygoogle || []).push({});
 		</script>
 		</div>
--->
+
 		<div id="welcome" class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
 	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
 	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
@@ -632,10 +647,8 @@ limitations under the License.
     	<div data-role="navbar">
 			<ul>
 				<li><a id="save-button" href="#" class="ui-btn" data-icon="check">Save</a></li>
-				<li><a id="clear-button" href="#" class="ui-btn" data-icon="delete">Clear</a></li>
 				<li><a id="list-button" href="#list" class="ui-btn ui-btn-active" data-icon="grid">List</a></li>
-				<li><a id="profile-button" href="#profile" class="ui-btn" data-icon="user">Profile</a></li>
-				<!-- <li><a id="sign-out-button" href="#" class="ui-btn" data-icon="arrow-r">Sign Out</a></li> -->
+				<li><a id="clear-button" href="#" class="ui-btn" data-icon="delete">Clear</a></li>
 		    </ul>
 		</div><!-- /navbar -->
 	</div><!-- /footer -->
