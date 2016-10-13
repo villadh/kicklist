@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<html>
+<html lang="en">
 <head>
   <meta charset=utf-8 />
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,9 +26,6 @@ limitations under the License.
 	<link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
 	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 	<script type="text/javascript" defer src="https://code.getmdl.io/1.1.3/material.min.js"></script>
-	<!-- 
-	<link rel="stylesheet" href="main.css">
-	-->
   <!-- Firebase -->
 <script type="text/javascript" src="https://www.gstatic.com/firebasejs/3.3.0/firebase.js"></script>
 <script type="text/javascript">
@@ -60,11 +57,6 @@ limitations under the License.
 	, cardRef = firebase.database().ref("cards")
 	, userRef
 	;
-	// card variables
-	var sets
-	, uCards
-	, cardTotal = 0
-	;
     /**
      * Function called when clicking the Login/Logout button.
      */
@@ -85,14 +77,13 @@ limitations under the License.
 		$(".pii").empty();
 		$("#header-main").text("Kicklist");
 
-		// clear all checkboxes
-		$("#mainboard-checklist :checkbox").attr("checked", false);
-		// clear ownership meta
-		$("#mainboard-checklist :checkbox").attr("value", "").checkboxradio("refresh");
+		// clear all checkboxes, ownership meta
+		$("#mainboard-checklist :checkbox").attr({
+			checked: false,
+			value: ""
+		}).checkboxradio("refresh");
 		// disable input until sign-in
 		$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
-		// replace tooltip
-		$("fieldset").one("click", showBenefits);
 		// close panel
 		$("#menu-panel").panel("close");
 
@@ -115,6 +106,7 @@ limitations under the License.
      */
 
     function initApp() {
+    	$("#tagline").text($("meta[name='description']").prop("content"));
       // Listening for auth state changes.
       // [START authstatelistener]
       firebase.auth().onAuthStateChanged(function(user) {
@@ -122,44 +114,70 @@ limitations under the License.
     		// User is signed in.
         	var displayName = user.displayName;
         	var email = user.email;
-//        	var emailVerified = user.emailVerified;
         	var photoURL = user.photoURL;
-//        	var isAnonymous = user.isAnonymous;
 			var providerData = user.providerData;
-			uid = user.uid;
 			var kickfanname = null
-	  			, wImg = document.getElementById("social-photo")
 			  	;
 			// update menu
 			//	modify sign in button text for sign out
 			$("#social-sign-in").text("Sign Out");
 			$("#social-sign-in").addClass("ui-btn-icon-right ui-icon-power");
-			// link to profile
-//			$("#profile-button").show();
+			// hide benefits
+			$("#sign-up-benefits").hide();
 			// build  account profile page
+			uid = user.uid;
 			if(displayName)
 				$("#display-name").text(displayName);
-			if(photoURL)
-				wImg.src = photoURL;
+			if(photoURL){
+				var iSocialPhoto = document.createElement("img");;
+				iSocialPhoto.id="social-photo"
+				iSocialPhoto.src = photoURL;
+				iSocialPhoto.alt="Profile Photo";
+				$("#display-name").before(iSocialPhoto);
+			}
 			if(email){
 				$("#e-mail").text(email);
 			} else{
 				$("#e-mail").text("Not provided");
 			}
 
+			// add profile button
+			var profileHTML = '<a id="profile-button" class="auth-user ui-btn ui-corner-all ui-btn-icon-right ui-icon-user" href="#profile" data-transition="slidefade">Profile</a>';
+			$("#social-sign-in").after(profileHTML);
+			// stop listening for click on disabled checkboxes
+			$("#mainboard-checklist").off("click", showBenefits);
 			// listen for updates to profile
 			$("#e-mail-update").on("click",bUpdateEmailHandleClick);
 			$("#kick-fan-name-update").on("click",bUpdateKickFanNameHandleClick);
-// TODO: save changes
-// TODO: save preferences
+			// listen for tab changes, update checkbox listeners
+			$( "#mainboard-checklist" ).on({
+			tabsbeforeactivate: function(tBeforeActivateEvent, uiTab) {
+					var cbActiveTabID = "#" + uiTab.oldPanel.attr("id") + " :checkbox";
+				// remove listeners from old panel
+					$(cbActiveTabID).off("click", cbHandleClick);
+				// listen for checkbox clicks on new panel
+					if(uiTab.newPanel.hasClass("ui-tabs"))	// if panel is also a tab, find child panel that is active
+						cbActiveTabID = "#" + $(uiTab.newPanel.find("li.ui-tabs-active a")[0]).attr("title") + " :checkbox";
+					else	// listen for check box clicks if panel is not also a tab
+						cbActiveTabID = "#" + uiTab.newPanel.attr("id") + " :checkbox";
+					$(cbActiveTabID).on("click", cbHandleClick);
+				}	// end of tabsbeforeactivate handler
+			});	// end of #mainboard-checklist listeners
+// TODO: save changes/preferences
 		  } else {
           // User is signed out.
           // [START_EXCLUDE]
 			$("#social-sign-in").removeClass("ui-btn-icon-right ui-icon-power");
 // TODO add font awesome social icon(s) 
 			$("#social-sign-in").text("Sign In");
-		// hide tool bar
-		$(".auth-user").hide();
+			// hide tool bar
+			$(".auth-user").hide();
+			// remove listeners
+			$( "#mainboard-checklist" ).off("tabsbeforeactivate");
+			$( "#mainboard-checklist :checkbox").off("click", cbHandleClick);
+			// listen for checkbox clicks, display benefits of sign-in
+			$("#mainboard-checklist").one("click", "fieldset", showBenefits);
+			$("#sign-up-benefits").show();
 
 // TODO : clear checklist area
           // [END_EXCLUDE]
@@ -169,19 +187,31 @@ limitations under the License.
         // [END_EXCLUDE]
       });
       // [END authstatelistener]
-      // listen for user interactions
-      document.getElementById('social-sign-in').addEventListener('click', toggleSignIn, false);
-      $( "#menu-panel" ).on({
-       "panelopen": function(event, ui){
-		$("#list-header > a").hide();
-      },
-
-      "panelclose": function(event, ui){
-		$("#sign-up-benefits").hide();
-		$("#list-header > a").show();
-      }
-      });
-    }
+      // listen for menu interactions
+		$("#social-sign-in").on("click", toggleSignIn);
+		$( "#menu-panel" ).on({
+			"panelopen": function(event, ui){
+				$("#list-header > a").hide();
+			},
+			"panelclose": function(event, ui){
+				$("#list-header > a").show();
+			}
+		});	// end menu-panel listeners
+		// navbar highlights
+		// listen for secondary navbar clicks
+		$( "#mainboard-checklist" ).on("tabsactivate", "div[data-role='tabs']",
+			function(tActivateEvent, uiTab) {
+				// set active status of top tier navbar when second tier navbar is clicked
+				$("#" + tActivateEvent.currentTarget.id + "-anchor").addClass("ui-btn-active");
+			}	// end of tabsactivate handler
+		);	// end mainboard-checklist listener
+		// listen for page changes
+		$( ":mobile-pagecontainer" ).on({ 
+			pagecontainerchange: function( pcChangeEvent, uiPChange ) {
+				$("li.ui-tabs-active a").addClass("ui-btn-active");
+			}	// end of pagecontainerchange handler
+		});	// end mobile-pagecontainer listeners
+    }	// end of function initApp
 
 	function renderChecklist(){
 		$.mobile.loading( "show",
@@ -204,11 +234,10 @@ limitations under the License.
 					console.log("renderChecklist: found: " + cardSnapshot.numChildren() + " records at ref " + cardRef);
 					// render card data
 					renderCards(cardSnapshot);
-					$(".header-button").show();
+					$("#list-header > a").show();
+
 					// disable input until sign-in
 					$("#mainboard-checklist :checkbox").checkboxradio( "disable" );
-					// listen for checkbox clicks, display benefits of sign-in
-					$("fieldset").one("click", showBenefits);
 
 					return firebase.auth().getRedirectResult(); // promise returning method of Firebase Auth service interface
 				}	// end of cardRef query fulfillment handler
@@ -243,30 +272,15 @@ limitations under the License.
 							} else {
 								console.log("renderChecklist: Hello new visitor!");
 //TODO: first launch experience
+//TODO: send event to analytics
 							}	// end of returningVisitor if
-								// enable checkboxes
-								$("#mainboard-checklist :checkbox").checkboxradio( "enable" );
-								$("fieldset").off("click", showBenefits);
-
-								// listen for checkbox clicks
-								$(":checkbox").on("click", cbHandleClick);
-
-								//listen for action button clicks
-								$("#save-button").on("click", bSubmitHandleClick);
-								$("#clear-button").on("click", bClearAllHandleClick);
-							
-								// listen for page transistions
-								$( ":mobile-pagecontainer" ).on( "pagecontainerchange", function( event, ui ) {
-									$("#list-button").addClass("ui-btn-active");
-								});
-
-								// display tool bar
-								$(".auth-user").show();
-
+							// enable checkboxes
+							$("#mainboard-checklist :checkbox").checkboxradio( "enable" );
 						}// end of userRef query fulfillment handler
 						)
 						.catch(function(err){
 							$.mobile.loading( "hide");
+//TODO: catch time out
 							if((!uid) || (err.message === "Cannot read property 'exists' of undefined")){
 								console.log("renderChecklist: No user information, listen for sign-in");
 							} else if(err.message === "user is not defined"){
@@ -304,12 +318,14 @@ limitations under the License.
 					;
 
 				// identify set tab
-				$(tabSec).attr('id', setChildSnapshot.key);
-				$(tabSec).attr('class', compTag);
+				$(tabSec).attr({
+					id: setChildSnapshot.key,
+					class: compTag
+				});
 				// set up fieldset for cards
 				$(tabSec).addClass('ui-field-contain');
-				$(fsCards).attr('data-role','controlgroup');
 				fsCards.id = setChildSnapshot.key + "-fs";
+				$(fsCards).attr('data-role','controlgroup');
 				$(hCards).text(setChildSnapshot.val().Name);
 				$(fsCards).append(hCards);
 				$(tabSec).append(fsCards);
@@ -326,15 +342,15 @@ limitations under the License.
 						, nbComp = document.createElement('div')
 						, ulComp = document.createElement('ul')
 						;
-					$(twComp).attr('id',compTag);
-					$(twComp).attr('data-role','tabs');
+					$(twComp).attr({
+						id: compTag,
+						"data-role": 'tabs'
+					});
 					$(ulComp).attr('id',ulCompID);
 					$(nbComp).attr('data-role','navbar');
 					$(nbComp).append(ulComp);
 					$(twComp).append(nbComp);
 					$(pageID).append(twComp);
-					// listen for secondary navbar clicks
-					$(twComp).on("click",nbSetHandleClick);
 				}
 				// add new elements
 				$(ulID).append(liSec);
@@ -362,8 +378,7 @@ limitations under the License.
 
 	function renderCards(cardsetSnapshot){
 		console.log('renderCards: building checklist');
-		uCards = cardsetSnapshot;
-		uCards.forEach(function(cardChildSnapshot){
+		cardsetSnapshot.forEach(function(cardChildSnapshot){
 			var checkArea = document.createElement('input')
 				, cardArea = document.createElement('label')
 				, cardsetArea = document.getElementById(cardChildSnapshot.val().Set + "-fs")
@@ -384,7 +399,8 @@ limitations under the License.
 		// enhance jQuery widgets
 		$("#list").enhanceWithin();
 		// set active tab's button
-		var activeTab = $("li.ui-tabs-active a").addClass("ui-btn-active");
+		$("li.ui-tabs-active a").addClass("ui-btn-active");
+
 		// display checklist, hide welcome
 		$("#welcome").hide();
 		$("#mainboard-checklist").show();
@@ -403,15 +419,25 @@ limitations under the License.
 			}
 		});	// end of foreach
 		console.log("renderOwnership: " + uid + " owns " + ownedCards + " marathon cards");
+		// render save/cancel button navbar
+		var nbSetOwnsership = '<div class="ui-bar" data-role="footer" data-position="fixed"><div id="user-tool-bar" class="auth-user" data-role="controlgroup" data-type="horizontal"><a id="save-button" href="#" class="ui-btn ui-btn-icon-right ui-icon-check">Save</a><a id="clear-button" href="#" class="ui-btn ui-btn-icon-right ui-icon-delete">Clear</a></div><!-- /navbar --></div><!-- /footer -->';
 		// enhance jQuery widgets
-		$("#list").enhanceWithin();
-		$.mobile.loading( "hide");
+		$("#list").append(nbSetOwnsership).enhanceWithin();
+		// listen for checkbox clicks
+		var dActiveCardTab = $("ul[id$='menu'] li.ui-tabs-active a")
+			, cbActiveTabID;
+		cbActiveTabID = "#" + $(dActiveCardTab[0]).attr("title") + " :checkbox";
+		$(cbActiveTabID).on("click", cbHandleClick);
+		//listen for action button clicks
+		$("#save-button").on("click", bSubmitHandleClick);
+		$("#clear-button").on("click", bClearAllHandleClick);
+		$("#user-tool-bar").hide();
+		$.mobile.loading("hide");
 		return ownedCards;
 	}	// end of function renderOwnership
 
 	function showBenefits(disabledCbEvent){
 		$("#menu-panel").panel("open");
-		$("#sign-up-benefits").show();
 	}	// end of function showBenefits
 
 	// DOM event handlers
@@ -465,8 +491,6 @@ limitations under the License.
 		// is there anything to update?
 		if(!fbQueue.length){
 			console.log("bSubmitHandleClick: No changes to submit");
-			$(this).removeClass("ui-btn-active");
-			$("#list-button").addClass("ui-btn-active");
 			// queue was empty, return no operations completed
 			return NOP;
 		}
@@ -494,6 +518,7 @@ limitations under the License.
 		userRef.child('cards/').update(cardData,
 			function(){
 				// update success, display database update success page
+				$("#user-tool-bar").hide();
 				$( ":mobile-pagecontainer" ).pagecontainer("change", "#fbdb-success", {transition : "pop"});
 				// update checkbox values
 				while(fbQueue.length){
@@ -520,47 +545,40 @@ limitations under the License.
 		// clear all checkboxes
 		$("#mainboard-checklist :checkbox").prop("checked", false).checkboxradio("refresh");
 		$("#mainboard-checklist :checkbox[value = 'GOT']").prop("checked", true).checkboxradio("refresh");
-
-		$(this).removeClass("ui-btn-active");
-		$("#list-button").addClass("ui-btn-active");
-	}	// end of bClearAllHandleClick function
-
-	function nbCompHandleClick(nbCompEvent){
-		console.log("nbCompHandleClick: ");
-	}	// end of nbCompHandleClick funciton 
-
-	function nbSetHandleClick(nbSetEvent){
-		// set active status of top tier navbar when second tier navbar is clicked
-		var compTabId = "#" + nbSetEvent.currentTarget.id + "-anchor";
-		$(compTabId).addClass("ui-btn-active");
-	}	// end of nbSetHandleClick function
+		$("#user-tool-bar").hide();
+		}	// end of bClearAllHandleClick function
 
 	function cbHandleClick(cbEvent){
-		var cardNo = cbEvent.currentTarget.name
-			, cbState = cbEvent.currentTarget.checked
-			, cardStatus = cbEvent.currentTarget.value 
-			, cardQueued = fbQueue.indexOf(cardNo);
+		var  cardNo = cbEvent.currentTarget.name
+			, cardQueued = fbQueue.indexOf(cardNo)
 			;
 		if(cardQueued < 0){
 			// add card to queue
-			console.log("cbHandleClick: adding " + cardNo + " to queue ");
 			fbQueue.push(cardNo);
+			console.log("cbHandleClick: adding " + cardNo + " to queue " + fbQueue.length);
+
 		}
 		else{
 			// TODO: remove card from fbQueue
-			console.log("cbHandleClick: removing " + cardNo + " from queue");
 			fbQueue.splice(cardQueued, 1);
+			console.log("cbHandleClick: removing " + cardNo + " from queue" + fbQueue.length);
+
 		}	// end cardQuese if
+
+		if(fbQueue.length){
+			$("#user-tool-bar").show();
+		} else{
+			$("#user-tool-bar").hide();
+		}
 	}	// end of cbHandleClick function
 
 	$( document ).on('ready', function(event){// Listening for page init to complete
-		$("#tagline").text($("meta[name='description']").prop("content"));
 		initApp();
 		renderChecklist();
 	}
 	);
   </script>
-  <script language="javascript" type="text/javascript">window.twttr = (function(d, s, id) {
+  <script type="text/javascript">window.twttr = (function(d, s, id) {
   var js, fjs = d.getElementsByTagName(s)[0],
     t = window.twttr || {};
   if (d.getElementById(id)) return t;
@@ -577,7 +595,6 @@ limitations under the License.
 }(document, "script", "twitter-wjs"));	// end of widget-js async load
   twttr.ready(
   function (twttr) {
-  	
 	twttr.widgets.createFollowButton(
 	"Kick17List",
 		document.getElementById("button-follow"),
@@ -608,9 +625,10 @@ limitations under the License.
 
 </script>
 <script src="analyticstracking.js" type="text/javascript"></script>
-	<style type="text/css">
+<style type="text/css">
 #list-header > a {
 				padding-left: 40px;
+				display: none;
 }
 .ui-panel-inner {
 				padding-top: 0px;
@@ -620,38 +638,33 @@ img {
 }
 #ad-unit-1{
 				margin: auto;
-				min-width: 80px;
+				min-width: 50%;
 }
 #mainboard-checklist,
-#sign-up-benefits,
 #list-twitter {
 				display: none;
 }
 .notice {
 				text-align: center;
 }
+.noscript-message {
+				border-style: double;
+				border-color: #FF0000;		
+}
+.noscript-message h3 {
+				text-align: center;				
+}
+.noscript-message p {
+					padding: 1em;
+}
 </style>
 </head>
 <body>
-<div data-role="page" id="list">
+<div id="list" data-role="page" >
 	<div id="list-header" data-role="header" data-position="fixed">
 		<a href="#menu-panel" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-bars ui-btn-icon-notext"></a>
 		<h1 id="header-main">Kicklist</h1>
 	</div><!-- /header -->
-	<!-- panel -->
-	<div id="menu-panel" data-role="panel" data-position="left">
-		<a class="ui-btn ui-corner-all ui-btn-icon-left ui-icon-delete ui-btn-icon-notext" href="#list-header" data-rel="close">Close Panel</a>
-		<a id="social-sign-in" class="ui-btn ui-corner-all">Sign In</a>
-		<a id="profile-button" class="auth-user ui-btn ui-corner-all ui-btn-icon-right ui-icon-user" href="#profile" data-transition="slidefade">Profile</a>
-		<ol id="sign-up-benefits">
-			<li>Sign in with your twitter account</li>
-			<li>Check off cards you "GOT" on your Kick account</li>
-			<li>Leave cards you "NEED" unchecked</li>
-			<li>Save your list</li>
-			<li>Return whenever you need to update your Kicklist!</li>
-		</ol>
-		<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info" data-transition="slidefade">About</a>
-	</div><!-- /panel -->
 	<div role="main" class="ui-content">
 <!-- Adsense: firebase-hosted -->
 		<div id="ad-unit-1">
@@ -664,52 +677,40 @@ img {
 		<script>
 			(adsbygoogle = window.adsbygoogle || []).push({});
 		</script>
-		</div><!-- /ad-unit-1 -->
+		</div>	<!-- /ad-unit-1 -->
 		<div id="welcome" class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
 	        <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
 	          <h2 class="mdl-card__title-text">Welcome to Kicklist</h2>
 	        </div>
 	        <div class="mdl-card__supporting-text mdl-color-text--grey-600">
 				<p id="tagline"></p>
+				<noscript><div class="noscript-message"><h3>Please enable JavaScript to view content and interact with this site </h3>
+				<p>At a minimum, this app requires acess to </p>
+				<ul>
+					<li>https://www.gstatic.com/firebasejs/3.3.0/firebase.js</li>
+					<li>https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js</li>
+					<li>https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js</li>
+				</ul>
+				</div></noscript>
 			</div>
 		</div>
 		<div id="mainboard-checklist"></div> <!-- end of Mainboard Tabs Area -->
 		<div class="notice"><p>© 2016 HSV Innovations, LLC </p></div>
 	</div><!-- /content -->
-	<div id="user-tool-bar" class="auth-user" data-role="footer" data-position="fixed">
-    	<div data-role="navbar">
-			<ul>
-				<li><a id="save-button" href="#" class="ui-btn" data-icon="check">Save</a></li>
-				<li><a id="list-button" href="#list" class="ui-btn ui-btn-active" data-icon="grid">List</a></li>
-				<li><a id="clear-button" href="#" class="ui-btn" data-icon="delete">Clear</a></li>
-		    </ul>
-		</div><!-- /navbar -->
-	</div><!-- /footer -->
+	<!-- panel -->
+	<div id="menu-panel" data-role="panel" data-position="left">
+		<a class="ui-btn ui-corner-all ui-btn-icon-left ui-icon-delete ui-btn-icon-notext" href="#list-header" data-rel="close">Close Panel</a>
+		<a id="social-sign-in" class="ui-btn ui-corner-all">Sign In</a>
+		<ol id="sign-up-benefits">
+			<li>Sign in with your twitter account</li>
+			<li>Check off cards you "GOT" on your Kick account</li>
+			<li>Leave cards you "NEED" unchecked</li>
+			<li>Save your list</li>
+			<li>Return whenever you need to update your Kicklist!</li>
+		</ol>
+		<a href="#about" class="ui-btn ui-corner-all ui-btn-icon-right ui-icon-info" data-transition="slidefade">About</a>
+	</div><!-- /panel -->
 </div><!-- /page list -->
-
-<!-- Start of page: #profile -->
-<div data-role="page" id="profile">
-	<div data-role="header" data-add-back-btn="true">
-		<h1>Kicklist | Profile</h1>
-	</div><!-- /header -->
-	<div data-role="content" class="user-details-container">
-		<!-- Listwview widget displaying user details -->
-		<ul data-role="listview">
-			<li>
-				<img alt="" id="social-photo" >
-				<h3 id="display-name" class="pii"></h3>
-			</li>
-			<li data-role="list-divider">Contact Information</li>
-			<li><a data-rel="dialog" data-transition="pop" href="#update-e-mail" class="ui-btn ui-icon-edit ui-btn-inline ui-btn-icon-right">Email: <span id="e-mail" class="pii"></span></a></li>
-			<li><a data-rel="dialog" data-transition="pop" href="#update-kick-fan-name" class="ui-btn ui-icon-edit ui-btn-inline ui-btn-icon-right">Kick Fan Name: <span id="kick-fan-name" class="pii"></span></a></li>
-			<!-- <li data-role="list-divider">Credentials</li>
-			Email password authentication not supported yet <li><a data-rel="dialog" data-transition="pop" href="#update-password" class="ui-btn">Update Password</a></li> -->
-		</ul>
-	</div><!-- /content -->
-	<div data-role="footer" data-position="fixed">
-	<div class="notice"><p>© 2016 HSV Innovations, LLC </p></div>
-	</div><!-- /footer -->
-</div><!-- /page profile -->
 <!-- Start of page: #about -->
 <div data-role="page" id="about">
 	<div data-role="header" data-add-back-btn="true">
@@ -733,6 +734,28 @@ img {
 		<p>HSV Innovations and this Kicklist website are not affiliated with, endorsed, sponsored, or specifically approved by The Topps Company, Inc.  The Topps Company, Inc. has sole ownership of the names, logo, artwork, marks, photographs, sounds, audio, video and/or any proprietary material used in connection with the game Topps® KICK® 2017- Football Card Trader.</p>
 	</div><!-- /footer -->
 </div><!-- /page about -->
+<!-- Start of page: #profile -->
+<div id="profile" data-role="page">
+	<div data-role="header" data-add-back-btn="true">
+		<h1>Kicklist | Profile</h1>
+	</div><!-- /header -->
+	<div class="user-details-container" data-role="content">
+		<!-- Listview widget displaying user details -->
+		<ul data-role="listview">
+			<li>
+				<h3 id="display-name" class="pii"></h3>
+			</li>
+			<li data-role="list-divider">Contact Information</li>
+			<li><a data-rel="dialog" data-transition="pop" href="#update-e-mail" class="ui-btn ui-icon-edit ui-btn-inline ui-btn-icon-right">Email: <span id="e-mail" class="pii"></span></a></li>
+			<li><a data-rel="dialog" data-transition="pop" href="#update-kick-fan-name" class="ui-btn ui-icon-edit ui-btn-inline ui-btn-icon-right">Kick Fan Name: <span id="kick-fan-name" class="pii"></span></a></li>
+			<!-- <li data-role="list-divider">Credentials</li>
+			Email password authentication not supported yet <li><a data-rel="dialog" data-transition="pop" href="#update-password" class="ui-btn">Update Password</a></li> -->
+		</ul>
+	</div><!-- /content -->
+	<div data-role="footer" data-position="fixed">
+	<div class="notice"><p>© 2016 HSV Innovations, LLC </p></div>
+	</div><!-- /footer -->
+</div><!-- /page profile -->
 <!-- Start of pop up page: #update-e-mail -->
 <div data-role="page" id="update-e-mail">
 	<div data-role="header">
@@ -742,7 +765,7 @@ img {
 		<h2>Set E-mail</h2>
 		<div class="ui-field-contain">
 			<label for="e-mail-tf">Enter new E-mail:</label>
-        	<input id="e-mail-tf" type="e-mail" name="e-mail-tf" value="">
+        	<input id="e-mail-tf" type="email" name="e-mail-tf" value="">
 			<input id="e-mail-update" type="button" name="e-mail-tf" value="Update" class="update-button">
 		</div>
 	</div><!-- /content -->
